@@ -1,6 +1,6 @@
 ### Table of contents
 * Java syntax  
-    * try-with-resource
+    * [try-with-resource](https://github.com/ZhangLaibao/machine_gun/blob/master/java/try-with-resource.md)
 * Source codes of JDK
     * Collection/Map
     * IO/NIO
