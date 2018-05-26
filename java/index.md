@@ -15,8 +15,15 @@
     * ClassLoader
     * .class
 * JavaEE
+    * RPC
+    * JDBC
+    * log
+        * slf4j
+        * logback
+        * ELK
     * servlet
     * servlet container/web server
+    * OSGi
     * JEE frameworks
         * Spring/SpringMVC/SpringBoot
         * MyBatis
