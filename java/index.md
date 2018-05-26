@@ -1,5 +1,6 @@
 ### Table of contents
-* Java syntax   
+* Java syntax  
+    * try-with-resource
 * Source codes of JDK
     * Collection/Map
     * IO/NIO
