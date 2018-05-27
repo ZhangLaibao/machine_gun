@@ -1,6 +1,7 @@
 ### Table of contents
 * Java syntax  
     * [try-with-resource](https://github.com/ZhangLaibao/machine_gun/blob/master/java/try-with-resource.md)
+    * [multi-catches](https://github.com/ZhangLaibao/machine_gun/blob/master/java/multi-catches.md)
 * Source codes of JDK
     * Collection/Map
     * IO/NIO
