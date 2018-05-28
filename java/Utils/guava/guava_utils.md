@@ -26,7 +26,20 @@ public class ABiMapExample {
 ```
 
 ### Joiner
-In JDK 8 and new, we can use java.lang.String.join() to transfer a List<String> to a delimeter seperated String, But in JDK 7 or older, the situation is not that convinient:
+In JDK 8 and new, we can use java.lang.String.join() to transfer a List<String> to a delimeter seperated String like this:    
+```java
+public class StringJoinExammple {
+
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<String>();  
+        list.add("aaa");  
+        list.add("bss");  
+        list.add("cdd");  
+        String str = String.join(",", list);  
+    }
+}
+```
+But in JDK 7 or older, the situation is not that convinient:
 but the goole guava Joiner will help:
 ```java
 public class GuavaJoinerExammple {
