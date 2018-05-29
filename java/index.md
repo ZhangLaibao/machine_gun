@@ -15,6 +15,7 @@
         * [guava_utils.md](https://github.com/ZhangLaibao/machine_gun/blob/master/java/Utils/guava/guava_utils.md)
 * JVM
     * JMM
+        * Java_memory_modal
     * ClassLoader
     * .class
 * JavaEE
