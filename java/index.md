@@ -15,7 +15,7 @@
         * [guava_utils.md](https://github.com/ZhangLaibao/machine_gun/blob/master/java/Utils/guava/guava_utils.md)
 * JVM
     * JMM
-        * Java_memory_modal
+        * [Java_memory_modal](https://github.com/ZhangLaibao/machine_gun/blob/master/java/JVM/JMM/Java_memory_modal.md)
     * ClassLoader
     * .class
 * JavaEE
