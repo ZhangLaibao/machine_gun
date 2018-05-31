@@ -78,7 +78,8 @@ public class StackOverflowErrorExample {
 不同于程序计数器，Java虚拟机没有寄存器，程序计数器也无法被程序指令直接访问。Java虚拟机的指令是从操作数栈中而不是从寄存器中取得操作数的，
 因此它的运行方式是基于栈的而不是基于寄存器的。    
 参考我们说明程序计数器时反汇编的例子，通过下图直观的展示在程序运行过程中局部变量表和操作数栈的动态：
-![local_variable_operand_stack](https://github.com/ZhangLaibao/machine_gun/blob/master/images/local_variable_operand_stack.png)   
+![local_variable_operand_stack](https://github.com/ZhangLaibao/machine_gun/blob/master/images/local_variable_operand_stack.png)
+   
 #### 3.NATIVE METHOD STACK - 本地方法栈
 本地方法栈可以理解为与虚拟机栈相同，只不过它是为本地方法调用服务的。Java虚拟机规范对于这部分的使用方式、数据结构和实现语言并没有强制
 规定，所以不同虚拟机产品实现方式自由。HotSpot虚拟机甚至把虚拟机栈和本地方法栈合二为一。
@@ -86,8 +87,8 @@ public class StackOverflowErrorExample {
 #### 4.JAVA HEAP - Java虚拟机堆
     The heap is the runtime data area from which memory for all class instances and arrays is allocated.
 虚拟机规范规定：所有对象实例以及数组都必须要在堆上分配。虽然随着JIT编译技术的发展与逃逸分析技术的逐渐成熟，栈上分配、标量替换等优化技术会
-打破这一必须，但是Java Heapd唯一目的仍然是存放对象的实例。堆由线程共享，在虚拟机启动时就会被创建，是虚拟机所管理的内存中体量最大的一块，
-GC也主要针对这一块区域。    
+打破这一必须，但是Java Heapd唯一目的仍然是存放对象的实例。堆由线程共享，所以我们在并发编程中谈到的线程安全问题也主要针对堆内存中的数据。
+堆内存在虚拟机启动时就会被创建，是虚拟机所管理的内存中体量最大的一块，GC也主要针对这一块区域。    
 从GC角度来说，堆还可以被分为新生代和老年代，新生代又被分为Eden Space/From Survivor/To Survivor等；从内存分配的角度来说，这一线程共享的
 区域又可以划分出多个线程私有的分配缓冲区。虚拟机规范只规定了这一区域必须是逻辑上连续的，所以在物理上，堆空间可以是不连续的。在实现上，
 既可以固定堆的大小，也可以通过虚拟机参数设置扩展。如果堆空间不足以完成实例分配，也不能通过扩展获取足够的空间时，就会抛出OutOfMemoryError。    
@@ -137,5 +138,75 @@ Heap
 ```
 我们可以看出，在抛出错误之前，虚拟机为了给新创建的对象分配内存空间经过了几次GC，但最终因为内存不足抛出错误。
 
+#### 5.METHOD AREA - 方法区
+方法区存储的是虚拟机加载的类信息(如类名、访问修饰符、字段方法注解等)、常量、静态变量、即时编译器编译的代码等数据。
+在虚拟机规范中，方法区是堆的一个逻辑部分，但是为了区分，方法区又被称为Non-Heap。在HotSpot虚拟机实现中，
+这一区域被称作永久代(Permanent Generation)。在JDK8及以后的版本中，这一区域改为由Native Memory实现，所以这一称呼也将成为历史。    
+虚拟机规范对此区域的限制也很宽松，除了可以像堆那样不需要连续的内存地址之外，其大小也可以选择固定或者动态扩展，并且可以选择不
+实现GC。因为针对此区域的GC内容主要是常量回收和类型卸载，鉴于这些操作都难有明显的内存回收效果。当方法区无法满足内存需求时，也会
+抛出OutOfMemoryError。    
+我们知道，运行时的字符串是存储在方法区的常量池中的，所以我们可以通过向常量池里写入大量字符串来制造常量池的OOM：
+```java
+// run with VM Args: -XX:PermSize=10M -XX:MaxPermSize=10M
+// run in JDK7 or earlier, or you will see:
+// Java HotSpot(TM) 64-Bit Server VM warning: ignoring option PermSize=10M; support was removed in 8.0
+// Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=10M; support was removed in 8.0
+public class ConstantPoolOOMExample {
+
+    public static void main(String[] args) {
+
+        int i = 0;
+        while (true) {
+            String.valueOf(i).intern();
+        }
+    }
+
+}
+```
+在Java企业开发中用到的很多框架技术，如Spring/Hibernate/Mybatis等，都会使用动态代理技术来增强被代理类，无论是JDK原生的动态代理
+还是CGLIB代理，都会产生大量代理类进入方法区，另外使用JSP技术时也很容易导致方法区的OOM。
+#### 6.直接内存
+直接内存就是操作系统的物理内存，这一部分并不归属于虚拟机运行时数据区，但是这一部分内存和JVM内存是密不可分的，比如在NIO中，Channel
+和Buffer就是通过直接调用Native函数直接分配内存，然后通过虚拟机堆内存的DirectByteBuffer对象引用以提高性能，避免在Java堆内存和
+Native堆内存之间copy数据的开销。
 ##### RFERENCES
 1.http://blog.jamesdbloom.com/JVMInternals.html
+2.https://blog.csdn.net/aigoogle/article/details/38757771
+3.深入理解Java虚拟机(JVM高级特性与最佳实践)-周志明
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
