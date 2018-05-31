@@ -13,57 +13,34 @@ JVM的内存模型(JMM)是指Java虚拟机在执行Java程序的过程中，将�
 ```java
 public class ProgramCounterRegisterDemonstrate {
 
-    private int id;
-
-    private String name;
-
-    public void method() {
-        System.out.println(this.id + ":" + this.name);
-    }
-
     public static void main(String[] args) {
-        ProgramCounterRegisterDemonstrate  demonstrate = new ProgramCounterRegisterDemonstrate();
-        demonstrate.method();
+        int i = 10;
+        int j = 20;
+        int k = i + j;
     }
 
 }
 ```
 我们使用反汇编命令javap -c来分析这个java类编译得到的.class文件，可以达到如下的结果：    
 ```java
-public class com.jr.test.ProgramCounterRegisterDemonstrate {
-  public com.jr.test.ProgramCounterRegisterDemonstrate();
+public class com.jr.test.OperandStackExample {
+  public com.jr.test.OperandStackExample();
     Code:
        0: aload_0
        1: invokespecial #1                  // Method java/lang/Object."<init>":()V
        4: return
 
-  public void method();
-    Code:
-       0: getstatic     #2                  // Field java/lang/System.out:Ljava/io/PrintStream;
-       3: new           #3                  // class java/lang/StringBuilder
-       6: dup
-       7: invokespecial #4                  // Method java/lang/StringBuilder."<init>":()V
-      10: aload_0
-      11: getfield      #5                  // Field id:I
-      14: invokevirtual #6                  // Method java/lang/StringBuilder.append:(I)Ljava/lang/StringBuilder;
-      17: ldc           #7                  // String :
-      19: invokevirtual #8                  // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
-      22: aload_0
-      23: getfield      #9                  // Field name:Ljava/lang/String;
-      26: invokevirtual #8                  // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
-      29: invokevirtual #10                 // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
-      32: invokevirtual #11                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-      35: return
-
   public static void main(java.lang.String[]);
     Code:
-       0: new           #12                 // class com/jr/test/ProgramCounterRegisterDemonstrate
-       3: dup
-       4: invokespecial #13                 // Method "<init>":()V
-       7: astore_1
-       8: aload_1
-       9: invokevirtual #14                 // Method method:()V
-      12: return
+       0: bipush        10
+       2: istore_1
+       3: bipush        20
+       5: istore_2
+       6: iload_1
+       7: iload_2
+       8: iadd
+       9: istore_3
+      10: return
 }
 ```
 
@@ -78,13 +55,14 @@ JVM的native方法大多是通过C实现并未编译的，所以当运行本地�
 #### 2.JAVA STACK - Java虚拟机栈
 与程序计数器类似的，因为Java虚拟机栈记载每个线程执行的方法调用链的信息，所以也是线程私有的，其生命周期与对应的线程相同。
 虚拟机栈也是遵循后进先出(LIFO)的栈结构，每一个方法被调用的时候，虚拟机都会创建一个栈帧(Stack Frame)并push到其所在线程
-的虚拟机栈的栈顶，这个栈帧存储了局部变量表、操作栈、动态链接、运行时常量引用、方法出口等信息，当方法执行完毕正常返回或者
-抛出异常时，这个栈帧就会被pop掉，除了压栈和弹栈，虚拟机栈并不会被直接操作。   
-**局部变量表** 由数组实现，存储了编译期可知的各种基本数据类型、对象引用和retrurnAddress类型。索引为0的元素表示这个方法所属的
-类的实例，从1开始，首先存放的是传给该方法的参数，在参数后面保存的是方法的局部变量。在Java语言中定义的64位长度的long和double类型
-的数据会占用2个局部变量空间(slot)，其余的数据类型占用1个。局部变量表所需的内存空间在编译期间即可确定。在JVM规范中，如果一个线程
-请求的栈的深度大于虚拟机所允许的深度，将会抛出StackOverflowError；如果虚拟机栈允许动态扩展，则当扩展时所申请的内存空间无法得到
-满足时，会抛出OutOfMemoryError。
+的虚拟机栈的栈顶，这个栈帧存储了局部变量表(Local variable arry)、操作栈(Operand stack)、动态链接、
+运行时常量引用(Reference to runtime constant pool for class of the current thread)、方法出口(Return value)等信息，
+当方法执行完毕正常返回或者抛出异常时，这个栈帧就会被pop掉，除了压栈和弹栈，虚拟机栈并不会被直接操作。   
+**局部变量表** 由数组实现，存储了编译期可知的各种基本数据类型、对象引用(reference)和retrurnAddress类型。对于实例方法，索引为0的元素表示这个
+方法所属的类的实例(this)，从1开始，首先存放的是传给该方法的参数，在参数后面保存的是方法的局部变量；对于类方法，索引从0开始。
+在Java语言中定义的64位长度的long和double类型的数据会占用2个局部变量空间(slot)，其余的数据类型占用1个。局部变量表所需的内存空间
+在编译期间即可确定。在JVM规范中，如果一个线程请求的栈的深度大于虚拟机所允许的深度，将会抛出StackOverflowError；
+如果虚拟机栈允许动态扩展，则当扩展内从用于放置新的栈时所申请的内存空间无法得到满足，会抛出OutOfMemoryError。
 我们可以很简单的制造一个StackOverflowError，只需一个循环调用，当然其他方法，比如递归调用，也很可能引发这一错误：
 ```java
 // run with VM Args: -Xss108k(It's the least size of JVM stack in JDK8) 
@@ -96,7 +74,11 @@ public class StackOverflowErrorExample {
     
 }
 ```
-
+**操作数栈**操作数栈和局部变量表很类似，也是由数组实现的，数据的存储方式也是一样的，不同的是，它不能通过数组的索引访问，而是通过标准的栈操作来访问。
+不同于程序计数器，Java虚拟机没有寄存器，程序计数器也无法被程序指令直接访问。Java虚拟机的指令是从操作数栈中而不是从寄存器中取得操作数的，
+因此它的运行方式是基于栈的而不是基于寄存器的。    
+参考我们说明程序计数器时反汇编的例子，通过下图直观的展示在程序运行过程中局部变量表和操作数栈的动态：
+![local_variable_operand_stack](https://github.com/ZhangLaibao/machine_gun/blob/master/images/local_variable_operand_stack.png)   
 #### 3.NATIVE METHOD STACK - 本地方法栈
 本地方法栈可以理解为与虚拟机栈相同，只不过它是为本地方法调用服务的。Java虚拟机规范对于这部分的使用方式、数据结构和实现语言并没有强制
 规定，所以不同虚拟机产品实现方式自由。HotSpot虚拟机甚至把虚拟机栈和本地方法栈合二为一。
