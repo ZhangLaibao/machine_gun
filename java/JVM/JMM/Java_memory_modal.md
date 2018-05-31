@@ -4,7 +4,13 @@ JVM的内存模型(JMM)是指Java虚拟机在执行Java程序的过程中，将�
 关于JVM和JMM的关系，我们可以看这张图片来帮助理解，这张图片很清楚的表达了JVM和JMM的体系结构和各部分之间的交互：   
 ![JVM-JMM](https://github.com/ZhangLaibao/machine_gun/blob/master/images/JVM-JMM.png)    
 我们所说的JMM主要针对图中的RUNTIME DATA AREA部分。其中黄色部分是被所有线程共享的区域，我们所讨论的线程之间数据同步即针对这一部分的数据，
-白色部分是线程隔离的。
+白色部分是线程隔离的。    
+    
+    注：本文运行环境 
+    java version "1.8.0_121" Java(TM) SE 
+    Runtime Environment (build 1.8.0_121-b13) 
+    Java HotSpot(TM) 64-Bit Server VM (build 25.121-b13, mixed mode)
+    
 #### 1.Program counter register - 程序计数器
     程序计数器是一块较小的内存空间，它的作用可以看作是当前线程所执行的字节码的行号指示器。在虚拟机的概念模型里字节码解释器
     工作时就是通过改变这个计数器的值来选取下一条需要执行的字节码指令，分支、循环、跳转、异常处理、线程恢复等基础功能都需要
