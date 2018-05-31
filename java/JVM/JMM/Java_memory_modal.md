@@ -170,8 +170,8 @@ public class ConstantPoolOOMExample {
 和Buffer就是通过直接调用Native函数直接分配内存，然后通过虚拟机堆内存的DirectByteBuffer对象引用以提高性能，避免在Java堆内存和
 Native堆内存之间copy数据的开销。
 ##### RFERENCES
-1.http://blog.jamesdbloom.com/JVMInternals.html
-2.https://blog.csdn.net/aigoogle/article/details/38757771
+1.http://blog.jamesdbloom.com/JVMInternals.html    
+2.https://blog.csdn.net/aigoogle/article/details/38757771    
 3.深入理解Java虚拟机(JVM高级特性与最佳实践)-周志明
 
 
