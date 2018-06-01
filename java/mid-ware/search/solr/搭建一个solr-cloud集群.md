@@ -216,27 +216,14 @@ compositeId前缀可以支持两级，比如："zhubajie!zhanglaibao!12345678"�
 当然，更简单的方式是使用zookeeper中shard的ID作为shards参数的值。
 
 ##### Configuring the ShardHandlerFactory - ShardHandlerFactory配置
-    You can directly configure aspects of the concurrency and thread-pooling used within distributed search in Solr.
-    This allows for finer grained control and you can tune it to target your own specific requirements. The default
-    configuration favors throughput over latency.
-    To configure the standard handler, provide a configuration like this in the solrconfig.xml:
-        <requestHandler name="standard" class="solr.SearchHandler" default="true">
-            <!-- other params go here -->
-            <shardHandler>
-                <shardHandlerFactory class="HttpShardHandlerFactory">
-                <int name="socketTimeOut">1000</int>
-                <int name="connTimeOut">5000</int>
-            </shardHandler>
-        </requestHandler>
-    The parameters that can be specified are as follows:
-    |Parameter|Default|Explanation|
-    |:----:|:----:|:----:|
-    |socketTimeout|0 (use OS default)|The amount of time in ms that a socket is allowed to wait.|
-    |connTimeout|0 (use OS default)|The amount of time in ms that is accepted for binding/connecting a socket|
-    |maxConnectionsPerHost|20|The maximum number of concurrent connections that is made to each individual shard in a distributed search.|
-    |maxConnections|10000|The total maximum number of concurrent connections in distributed searches.|
-    |corePoolSize|0|The retained lowest limit on the number of threads used in coordinating distributed search.|
-    |maximumPoolSize|Integer.MAX_VALUE|The maximum number of threads used for coordinating distributed search.|
-    |maxThreadIdleTime|5|seconds The amount of time to wait for before threads are scaled back in response to a reduction in load.|
-    |sizeOfQueue|-1|If specified, the thread pool will use a backing queue instead of a direct handoff buffer. High throughput systems will want to configure this to be a direct hand off (with -1). Systems that desire better latency will want to configure a reasonable size of queue to handle variations in requests.|
-    |fairnessPolicy|false|Chooses the JVM specifics dealing with fair policy queuing, if enabled distributed searches will be handled in a First in First out fashion at a cost to throughput. If disabled throughput will be favored over latency. Configuring statsCache implementation|
+Solr的默认配置是吞吐量优先，当然它提供了大量可配置参数使用户可以细粒度配置solr的行为特性，配制方法如下：
+
+    <!-- solrconfig.xml -->
+    <requestHandler name="standard" class="solr.SearchHandler" default="true">
+        <!-- other params go here -->
+        <shardHandler>
+            <shardHandlerFactory class="HttpShardHandlerFactory">
+            <int name="socketTimeOut">1000</int>
+            <int name="connTimeOut">5000</int>
+        </shardHandler>
+    </requestHandler>
