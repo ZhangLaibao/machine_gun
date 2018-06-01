@@ -110,24 +110,27 @@ Cluster，即集群，就是注册到同一个zookeeper并且接受其管理的�
         2.If the machine is a leader, SolrCloud determines which shard the document should go to, forwards the 
         document the leader for that shard, indexes the document for this shard, and forwards the index notation 
         to itself and any replicas
-在SolrCloud时代到来之前，Solr提供了分布式搜索功能，此时也有shard的概念，一个逻辑上的index会被分解到多个shard上，一个搜索请求
+在SolrCloud时代到来之前，Solr提供了主从模式，此时也有shard的概念，一个逻辑上的index会被分解到多个shard上，一个搜索请求
 会横跨这几个shard，然后每个shard上的查询结果会被合并起来。但此时存在如下几个问题：   
 1.分片过程是人工的    
 2.没有分布式索引的支持，这意味着Solr不知道将一条新增的document数据放到哪一个分片    
-3.没有负载均衡和灾备机制    
+3.没有统一配置管理，没有负载均衡和灾备机制    
 SolrCloud解决了这些问题，首先提供了集群内部对索引和查询的路由，然后使用zk提供了灾备和负载均衡。在SolrCloud中使用了leader和
 replica的概念代替了zk的master和slave概念。leader首先由最先启动的节点担当，之后由zk的选主机制来维护。当添加一个新的document
 到index上时，集群首先判断接收数据的节点的角色，分发到replica上的数据会被路由到leader处理，然后leader负责同步数据到replica。
 
 ##### Document Routing - 索引数据路由
     Solr offers the ability to specify the router implementation used by a collection by specifying the router.name 
-    parameter when creating your collection. If you use the "compositeId" router, you can send documents with a 
-    prefix in the document ID which will be used to calculate the hash Solr uses to determine the shard a document
-    is sent to for indexing. The prefix can be anything you'd like it to be , but it must be consistent so Solr 
-    behaves consistently. For example, if you wanted to co-locate documents for a customer, you could use the 
-    customer name or ID as the prefix. If your customer is "IBM", for example, with a document with the ID "12345", 
-    you would insert the prefix into the document id field:"IBM!12345". The exclamation mark ('!') is critical here, 
-    as it distinguishes the prefix used to determine which shard to direct the document to.
+    parameter when creating your collection. The value can be either implicit, which uses an internal default hash, 
+    or compositeId, which allows defining the specific shard to assign documents to. When using the 'implicit' router, 
+    the shards parameter is required. When using the 'compositeId' router, the numShards parameter is required. 
+    If you use the "compositeId" router, you can send documents with a prefix in the document ID which will be used to 
+    calculate the hash Solr uses to determine the shard a document is sent to for indexing. 
+    The prefix can be anything you'd like it to be , but it must be consistent so Solr behaves consistently. 
+    For example, if you wanted to co-locate documents for a customer, you could use the customer name or ID as 
+    the prefix. If your customer is "IBM", for example, with a document with the ID "12345", you would insert the 
+    prefix into the document id field:"IBM!12345". The exclamation mark ('!') is critical here,as it distinguishes 
+    the prefix used to determine which shard to direct the document to.
     Then at query time, you include the prefix(es) into your query with the _route_ parameter (i.e., q=solr&_rout
     e_=IBM!) to direct queries to specific shards. In some situations, this may improve query performance because
     it overcomes network latency when querying all the shards.
@@ -145,3 +148,62 @@ replica的概念代替了zk的master和slave概念。leader首先由最先启动
     define arouter.field parameter to use a field from each document to identify a shard where the document belongs. 
     If the field specified is missing in the document, however, the document will be rejected. You could also use 
     the _route_ parameter to name a specific shard.
+在创建collection的时候Solr提供了通过router.name参数指定router规则的功能。取值有implicit和compositeId两种。使用implicit的时候
+需要指定shards参数，使用compositeId的时候，需要指定numShards参数。    
+我们以后者为例，我们通过给document的ID加前缀，solr会计算这个前缀的哈希值，根据哈希值和numShards确定在索引时将索引数据存储到
+哪一个shard上。例如，如果你希望根据用户名称将索引分片，那你可以将用户名作为ID的前缀，比如："zhanglaibao!12345678"，
+注意这个!是必须的分隔符，查询的时候你需要用_route_参数将前缀带入查询条件，例如"\_route\_=zhanglaibao!"，注意要包含这个!分隔符。
+compositeId前缀可以支持两级，比如："zhubajie!zhanglaibao!12345678"。
+##### Shard Splitting
+    When you create a collection in SolrCloud, you decide on the initial number shards to be used. But it can be
+    difficult to know in advance the number of shards that you need.
+    The ability to split shards is in the Collections API. It currently allows splitting a shard into two pieces. The
+    existing shard is left as-is, so the split action effectively makes two copies of the data as new shards. You can
+    delete the old shard at a later time when you're ready.
+在创建collection的时候需要指定numShards参数，但是我们很难预知这个参数的合理值。所以solr提供了Collection API支持shard分裂，
+当前支持一个shard分裂成两份，原有shard不受影响，当新的shard数据准备好之后原有shard可以被删掉。
+##### Ignoring Commits from Client Applications in SolrCloud - 忽略客户端显式提交
+    In most cases, when running in SolrCloud mode, indexing client applications should not send explicit commit
+    requests. Rather, you should configure auto commits with openSearcher=false and auto soft-commits to
+    make recent updates visible in search requests. This ensures that auto commits occur on a regular schedule in
+    the cluster. To enforce a policy where client applications should not send explicit commits, you should update all
+    client applications that index data into SolrCloud. However, that is not always feasible. 
+    As shown in the example above, the processor will return 200 to the client but will ignore the commit/optimize
+    request. Notice that you need to wire-in the implicit processors needed by SolrCloud as well, since this custom
+    chain is taking the place of the default chain.
+
+在大多数情况下，当在SolrCloud模式下运行时，索引客户端应用程序不应发送显式提交要求。相反应该使用openSearcher = false和
+自动软提交配置使数据的更新在后续的搜索请求中可见。要强制客户端应用程序不应发送显式提交的策略，你需要修改每一个客户端的代码，
+这无疑是不合理的，所以solr提供了如下几种配置来实现这一约束：
+
+    <!-- solrconfig.xml -->
+    
+    <!-- the processor will return 200 to the client but will ignore the commit/optimize request -->
+    <updateRequestProcessorChain name="ignore-commit-from-client" default="true">
+        <processor class="solr.IgnoreCommitOptimizeUpdateProcessorFactory">
+            <int name="statusCode">200</int>
+        </processor>
+        <processor class="solr.LogUpdateProcessorFactory" />
+        <processor class="solr.DistributedUpdateProcessorFactory" />
+        <processor class="solr.RunUpdateProcessorFactory" />
+    </updateRequestProcessorChain>   
+     
+    <!-- the processor will raise an exception with a 403 code with a customized error message --> 
+    <updateRequestProcessorChain name="ignore-commit-from-client" default="true">
+        <processor class="solr.IgnoreCommitOptimizeUpdateProcessorFactory">
+            <int name="statusCode">403</int>
+            <str name="responseMessage">Thou shall not issue a commit!</str>
+        </processor>
+        <processor class="solr.LogUpdateProcessorFactory" />
+        <processor class="solr.DistributedUpdateProcessorFactory" />
+        <processor class="solr.RunUpdateProcessorFactory" />
+    </updateRequestProcessorChain>
+    
+    <!-- ignore optimize and let commits pass thru --> 
+    <updateRequestProcessorChain name="ignore-optimize-only-from-client-403">
+        <processor class="solr.IgnoreCommitOptimizeUpdateProcessorFactory">
+             <str name="responseMessage">Thou shall not issue an optimize, but commits are OK!</str>
+             <bool name="ignoreOptimizeOnly">true</bool>
+        </processor>
+        <processor class="solr.RunUpdateProcessorFactory" />
+    </updateRequestProcessorChain>
