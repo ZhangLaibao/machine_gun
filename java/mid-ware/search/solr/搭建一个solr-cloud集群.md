@@ -163,15 +163,6 @@ compositeId前缀可以支持两级，比如："zhubajie!zhanglaibao!12345678"�
 在创建collection的时候需要指定numShards参数，但是我们很难预知这个参数的合理值。所以solr提供了Collection API支持shard分裂，
 当前支持一个shard分裂成两份，原有shard不受影响，当新的shard数据准备好之后原有shard可以被删掉。
 ##### Ignoring Commits from Client Applications in SolrCloud - 忽略客户端显式提交
-    In most cases, when running in SolrCloud mode, indexing client applications should not send explicit commit
-    requests. Rather, you should configure auto commits with openSearcher=false and auto soft-commits to
-    make recent updates visible in search requests. This ensures that auto commits occur on a regular schedule in
-    the cluster. To enforce a policy where client applications should not send explicit commits, you should update all
-    client applications that index data into SolrCloud. However, that is not always feasible. 
-    As shown in the example above, the processor will return 200 to the client but will ignore the commit/optimize
-    request. Notice that you need to wire-in the implicit processors needed by SolrCloud as well, since this custom
-    chain is taking the place of the default chain.
-
 在大多数情况下，当在SolrCloud模式下运行时，索引客户端应用程序不应发送显式提交要求。相反应该使用openSearcher = false和
 自动软提交配置使数据的更新在后续的搜索请求中可见。要强制客户端应用程序不应发送显式提交的策略，你需要修改每一个客户端的代码，
 这无疑是不合理的，所以solr提供了如下几种配置来实现这一约束：
@@ -207,3 +198,45 @@ compositeId前缀可以支持两级，比如："zhubajie!zhanglaibao!12345678"�
         </processor>
         <processor class="solr.RunUpdateProcessorFactory" />
     </updateRequestProcessorChain>
+
+#### Distributed Requests - 分布式请求处理
+##### Limiting Which Shards are Queried - 限定搜索的分片
+搜索所有分片
+    
+    http://localhost:8983/solr/gettingstarted/select?q=*:*
+搜索某一分片    
+
+    http://localhost:8983/solr/gettingstarted/select?q=*:*&shards=localhost:7574/solr
+搜索某些分片    
+
+    http://localhost:8983/solr/gettingstarted/select?q=*:*&shards=localhost:7574/solr,localhost:8983/solr
+在某些分片中自动负载均衡搜索请求   
+ 
+    http://localhost:8983/solr/gettingstarted/select?q=*:*&shards=localhost:7574/solr|localhost:7500/solr
+当然，更简单的方式是使用zookeeper中shard的ID作为shards参数的值。
+
+##### Configuring the ShardHandlerFactory - ShardHandlerFactory配置
+    You can directly configure aspects of the concurrency and thread-pooling used within distributed search in Solr.
+    This allows for finer grained control and you can tune it to target your own specific requirements. The default
+    configuration favors throughput over latency.
+    To configure the standard handler, provide a configuration like this in the solrconfig.xml:
+        <requestHandler name="standard" class="solr.SearchHandler" default="true">
+            <!-- other params go here -->
+            <shardHandler>
+                <shardHandlerFactory class="HttpShardHandlerFactory">
+                <int name="socketTimeOut">1000</int>
+                <int name="connTimeOut">5000</int>
+            </shardHandler>
+        </requestHandler>
+    The parameters that can be specified are as follows:
+    |Parameter|Default|Explanation|
+    |:----:|:----:|:----:|
+    |socketTimeout|0 (use OS default)|The amount of time in ms that a socket is allowed to wait.|
+    |connTimeout|0 (use OS default)|The amount of time in ms that is accepted for binding/connecting a socket|
+    |maxConnectionsPerHost|20|The maximum number of concurrent connections that is made to each individual shard in a distributed search.|
+    |maxConnections|10000|The total maximum number of concurrent connections in distributed searches.|
+    |corePoolSize|0|The retained lowest limit on the number of threads used in coordinating distributed search.|
+    |maximumPoolSize|Integer.MAX_VALUE|The maximum number of threads used for coordinating distributed search.|
+    |maxThreadIdleTime|5|seconds The amount of time to wait for before threads are scaled back in response to a reduction in load.|
+    |sizeOfQueue|-1|If specified, the thread pool will use a backing queue instead of a direct handoff buffer. High throughput systems will want to configure this to be a direct hand off (with -1). Systems that desire better latency will want to configure a reasonable size of queue to handle variations in requests.|
+    |fairnessPolicy|false|Chooses the JVM specifics dealing with fair policy queuing, if enabled distributed searches will be handled in a First in First out fashion at a cost to throughput. If disabled throughput will be favored over latency. Configuring statsCache implementation|
