@@ -216,7 +216,7 @@ compositeId前缀可以支持两级，比如："zhubajie!zhanglaibao!12345678"�
 当然，更简单的方式是使用zookeeper中shard的ID作为shards参数的值。
 
 ##### Configuring the ShardHandlerFactory - ShardHandlerFactory配置
-Solr的默认配置是吞吐量优先，当然它提供了大量可配置参数使用户可以细粒度配置solr的行为特性，配制方法如下：
+Solr的默认配置是吞吐量优先，当然它提供了大量可配置参数使用户可以细粒度配置solr的行为特性，配置方法如下：
 
     <!-- solrconfig.xml -->
     <requestHandler name="standard" class="solr.SearchHandler" default="true">
@@ -227,3 +227,50 @@ Solr的默认配置是吞吐量优先，当然它提供了大量可配置参数�
             <int name="connTimeOut">5000</int>
         </shardHandler>
     </requestHandler>
+##### Configuring statsCache implementation
+Solr需要document和term的统计数据用来计算相关性。Solr提供了以下四种document统计数据的实现：    
+1.LocalStatsCache:默认值。 仅使用本地term和document统计数据来计算相关性，当term在各个shard中分布比较均匀时，计算结果很准确。    
+2.ExactStatsCache:使用全局docunment频率。    
+3.ExactSharedStatsCache: 与2类似，但是对相同的查询条件会重用全局统计信息。    
+4.LRUStatsCache:使用LRU算法统计。
+    
+    <!-- solrconfig.xml -->
+    <statsCache class="org.apache.solr.search.stats.ExactStatsCache"/>
+    
+##### Avoiding Distributed Deadlock - 避免死锁
+    Each shard serves top-level query requests and then makes sub-requests to all of the other shards. Care should
+    be taken to ensure that the max number of threads serving HTTP requests is greater than the possible number
+    of requests from both top-level clients and other shards. If this is not the case, the configuration may result in a
+    distributed deadlock.
+    For example, a deadlock might occur in the case of two shards, each with just a single thread to service HTTP
+    requests. Both threads could receive a top-level request concurrently, and make sub-requests to each other.
+    Because there are no more remaining threads to service requests, the incoming requests will be blocked until the
+    other pending requests are finished, but they will not finish since they are waiting for the sub-requests. By
+    ensuring that Solr is configured to handle a sufficient number of threads, you can avoid deadlock situations like
+    this.
+SolrCloud在处理一个搜索请求时，每个分片会提供一个“顶级”查询服务，然后向其他所有分片发起子查询请求。所以在配置时要提供足够的
+线程去处理并发的查询请求以避免死锁，例如：    
+我们有两个分片A和B，他们都被配置成只有一个提供HTTP服务的线程，他们在并发处理请求时会出现这样的场景：A在处理一个“顶级”查询，
+然后向B发起一个子查询，如果此时B也同样向A发出子查询，由于两个分片都没有额外的线程去处理对方发起的查询，那么这两个节点的请求
+就会一直等待，形成死锁。
+
+##### Prefer Local Shards - 本地分片优先
+    Solr allows you to pass an optional boolean parameter named preferLocalShards to indicate that a
+    distributed query should prefer local replicas of a shard when available. In other words, if a query includes prefe
+    rLocalShards=true, then the query controller will look for local replicas to service the query instead of
+    selecting replicas at random from across the cluster. This is useful when a query requests many fields or large
+    fields to be returned per document because it avoids moving large amounts of data over the network when it is
+    available locally. In addition, this feature can be useful for minimizing the impact of a problematic replica with
+    degraded performance, as it reduces the likelihood that the degraded replica will be hit by other healthy replicas.
+    Lastly, it follows that the value of this feature diminishes as the number of shards in a collection increases
+    because the query controller will have to direct the query to non-local replicas for most of the shards. In other
+    words, this feature is mostly useful for optimizing queries directed towards collections with a small number of
+    shards and many replicas. Also, this option should only be used if you are load balancing requests across all
+    nodes that host replicas for the collection you are querying, as Solr's CloudSolrClient will do. If not
+    load-balancing, this feature can introduce a hotspot in the cluster since queries won't be evenly distributed
+    across the cluster.
+Solr提供了boolean类型的preferLocalShards参数来指定本地分片优先策略。如果我们在一次请求中传递preferLocalShards=true，那么
+集群会选择检索本地分片而不是在整个集群里选择其他节点上的分片。当我们的查询结果数据量很大的时候，这一特性可以减少数据在集群
+实例间传输的网络开销。另外，这一特性减少了数据损坏的分片的命中率，从而提高集群的性能。换言之，当集群中分片数较少但是副本数
+较多时，这一特性会显著减少网络开销，提升性能。并且，只有集群间有负载均衡机制的时候才能使用这一参数，CloudSolrClient就是这
+样做的，否则在集群中很容易形成热点，因为请求不会被均匀的分发到集群的其他节点
