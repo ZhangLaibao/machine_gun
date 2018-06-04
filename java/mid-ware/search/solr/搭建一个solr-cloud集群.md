@@ -274,3 +274,70 @@ Solr提供了boolean类型的preferLocalShards参数来指定本地分片优先�
 实例间传输的网络开销。另外，这一特性减少了数据损坏的分片的命中率，从而提高集群的性能。换言之，当集群中分片数较少但是副本数
 较多时，这一特性会显著减少网络开销，提升性能。并且，只有集群间有负载均衡机制的时候才能使用这一参数，CloudSolrClient就是这
 样做的，否则在集群中很容易形成热点，因为请求不会被均匀的分发到集群的其他节点
+
+#### Read and Write Side Fault Tolerance - 读写端容错
+##### Read Side Fault Tolerance - 读端容错
+    With earlier versions of Solr, you had to set up your own load balancer. Now each individual node load balances
+    requests across the replicas in a cluster. You still need a load balancer on the 'outside' that talks to the cluster, 
+    or you need a smart client (Solr provides a smart Java Solrj client called CloudSolrClient).
+    A smart client understands how to read and interact with ZooKeeper and only requests the ZooKeeper
+    ensemble's address to start discovering to which nodes it should send requests.
+    Each distributed search request is executed against all shards for a collection unless limited by the user with the '
+    shards' or '_route_' parameters. If one or more shards queried are unavailable then the default is to fail the
+    request. However, there are many use-cases where partial results are acceptable and so Solr provides a
+    boolean shards.tolerant parameter (default 'false'). If shards.tolerant=true then partial results may
+    be returned. If the returned response does not contain results from all the appropriate shards then the response
+    header contains a special flag called 'partialResults'. The client can specify 'shards.info' along with the '
+    shards.tolerant' parameter to retrieve more fine-grained details.
+在早期Solr版本中，用户必须自己设置负载均衡。现在，每个节点都能够在集群的副本中自动负载均衡请求。但是用户还是需要一个“智能”客户端
+来和集群对话(在Solrj里提供了CloudSolrClient)。这个智能的客户端懂得如何与ZooKeeper集群交互来决定将请求发送到哪一个节点。    
+除非指定了'shards'或者'_route_'参数，否则每一个分布式的请求都会检索一个collection的所有分片。如果任何一个涉及到的分片不可用，
+那么默认地会返回失败。但是在很多情况下用户是允许返回不完整的结果的，所以solr提供了boolean类型的shards.tolerant参数(默认false)，
+如果设置成true，那么结果集中会带有partialResults标识来说明。客户端可以根据shards.info和shards.tolerant参数来更细粒度的读取数据。
+##### Write Side Fault Tolerance - 写端容错
+    SolrCloud supports near real-time actions, elasticity, high availability, and fault tolerance. What this means,
+    basically, is that when you have a large cluster, you can always make requests to the cluster, and if a request is
+    acknowledged you are sure it will be durable; i.e., you won't lose data. Updates can be seen right after they are
+    made and the cluster can be expanded or contracted.
+SolrCloud支持近实时操作，扩展性，高可用和容错性。意味着当我们面对一个巨大的集群，一旦一个请求被确认，那么我们面对的数据就是
+持久性的，不用担心丢失数据。更新实时可见并且可以被扩展和传播。
+
+##### Near Real Time Searching
+    If you want to use the NearRealtimeSearch support, enable auto soft commits in your solrconfig.xml file
+    before storing it into Zookeeper. Otherwise you can send explicit soft commits to the cluster as you need.
+    SolrCloud doesn't work very well with separated data clusters connected by an expensive pipe. The root problem
+    is that SolrCloud's architecture sends documents to all the nodes in the cluster (on a per-shard basis), and that
+    architecture is really dictated by the NRT functionality.
+    Imagine that you have a set of servers in China and one in the US that are aware of each other. Assuming 5
+    replicas, a single update to a shard may make multiple trips over the expensive pipe before it's all done, probably
+    slowing indexing speed unacceptably.
+    So the SolrCloud recommendation for this situation is to maintain these clusters separately; nodes in China don't
+    even know that nodes exist in the US and vice-versa. When indexing, you send the update request to one node
+    in the US and one in China and all the node-routing after that is local to the separate clusters. Requests can go
+    to any node in either country and maintain a consistent view of the data.
+    
+如果你想使用Solr的近实时支持，你需要在将solr节点注册到zk之前在solrconfig.xml中使能自动软提交，或者可以显式的向集群发送
+自动软提交请求。当solr集群被昂贵的网络分离开时，SolrCloud的表现会很差，根本原因在于，SolrCloud的NRT功能的架构设计使得在
+集群节点之间会有大量的document传输，设想我们的SolrCloud集群在中国和美国分别有一部分机器，假设每个分片有5个备份，那么仅仅
+是一个简单的更新操作就需要在两个机房之间进行大量的网络传输，这将会消耗很大的网络资源并且会让索引和查询的速度慢得让人难以接受。
+所以Solr官方推荐是将这两个机房独立起来，双方都不必知道对方的存在，建立索引的时候我们向两个集群分别发送请求，集群就只需要在
+内部处理数据。查询请求可以路由到两个集群中的任意一个，看到的结果是一样的。
+NRT的使用也会影响到灾后恢复的行为，还是以上述集群为例，如果美国的集群挂了，那么恢复的步骤如下：
+
+    1.Take the downed system offline to all end users. - 损坏集群下线    
+    2.Take the indexing process offline. - 线下恢复索引数据    
+    3.Repair the system. - 系统修复    
+    4.Bring up one machine per shard in the repaired system as part of the ZooKeeper cluster on the good
+      system, and wait for replication to happen, creating a replica on that machine. (SoftCommits will not be
+      repeated, but data will be pulled from the transaction logs if necessary.) - 按每个shard重启损坏的系统，注册到
+      健康系统的zk上，等待数据备份完成。    
+    5.Bring the machines of the repaired cluster down, and reconfigure them to be a separate Zookeeper cluster
+      again, optionally adding more replicas for each shard. - 将修复的集群下线，注册到另外的zk集群。    
+    6.Make the repaired system visible to end users again. - 修复的集群上线    
+    
+### SolrCloud集群搭建
+#### ZooKeeper集群支持
+Solr的安装包里集成了ZooKeeper，使用Solr脚本也可以直接以SolrCloud模式启动solr，同时启动这个内置的ZooKeeper并使用它管理
+SolrCloud。但是在生产环境里并没有人这么搞，因为此时Solr实例和ZooKeeper是绑定在一起的，启停Solr实例都会同时影响到ZooKeeper
+集群的规模，而ZooKeeper集群就会因此频繁选举重新确定Leader。所以就连Solr的官方也建议启动一个独立的ZK集群来管理SolrCloud。
+关于ZooKeeper的知识以及其环境的搭建，我们单独讲解。
