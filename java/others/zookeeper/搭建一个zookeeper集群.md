@@ -27,3 +27,62 @@ ZooKeeper是一个高性能的分布式应用协调服务。它通过简单的�
 &ensp;&ensp;&ensp;&ensp;所有事务串行处理。
 持久性(Durability)    
 &ensp;&ensp;持久性是指数据库的数据一旦提交之后就是持久化并且不会自己发生改变的。
+
+#### 搭建一个5节点的ZooKeeper集群
+    环境和版本信息
+        1.VMware® Workstation 12 Pro - 12.5.2 build-4638234
+        2.CentOS Linux release 7.3.1611 (Core) 
+            192.168.137.27
+            192.168.137.61
+            192.168.137.53
+            192.168.137.117
+            192.168.137.156            
+        3.java version "1.8.0_131"
+        4.zookeeper-3.4.9
+1.解压安装复制配置文件 - 略    
+2.编辑配置文件zoo.cfg，添加五个节点的配置信息
+
+    # The number of milliseconds of each tick
+    tickTime=2000
+    # The number of ticks that the initial
+    # synchronization phase can take
+    initLimit=10
+    # The number of ticks that can pass between
+    # sending a request and getting an acknowledgement
+    syncLimit=5
+    # the directory where the snapshot is stored.
+    dataDir=/usr/zk/data
+    # the port at which the clients will connect
+    clientPort=2181
+    # Peers use the former port to connect to other peers. Such a connection is necessary so that peers 
+    # can communicate, for example, to agree upon the order of updates. More specifically, a ZooKeeper server 
+    # uses this port to connect followers to the leader. When a new leader arises, a follower opens a TCP 
+    # connection to the leader using this port. Because the default leader election also uses TCP, we currently 
+    # require another port for leader election. This is the second port in the server entry.
+    server.1=192.168.137.53:2888:3888
+    server.2=192.168.137.61:2888:3888
+    server.3=192.168.137.27:2888:3888
+    server.4=192.168.137.117:2888:3888
+    server.5=192.168.137.156:2888:3888
+3.配置文件及分发
+3.1.配置ssh免密码登录   
+在实际生产环境中，zk节点之间可以互相配置ssh免密码登录，方便运维。   
+3.2.分发配置文件，例如在server.3上执行以下命令，会将我们配置好的zoo.cfg分发到server.1上    
+    
+    scp /usr/zk/zookeeper-3.4.9/conf/zoo.cfg root@192.168.137.53:/usr/zk/zookeeper-3.4.9/conf/zoo.cfg
+
+3.3.编写myid    
+我们注意到在zoo.cfg中我们指定了我们的5台ZooKeeper机器实例，在server.X中，数字X就代表每个实例的ID，这个ID我们必须要
+写在我们配置的dataDir中，并命名为myid，其内容就是这个数字X。   
+4.启/停集群    
+我们可以使用终端工具secureCRT，同时连接我们的5台机器，然后在交互窗口中把命令发送到所有会话，同时启动五个zk节点
+
+    ./zkServer.sh start ../conf/zoo.cfg
+通过zkServer命令也可以关闭zk节点
+
+    ./zkServer.sh stop
+我们也可以通过如下脚本关闭zk
+
+    jps | grep -v Jps | awk '{print $1}' | xargs kill -9
+5.trouble shoot   
+也许你需要关闭防火墙```systemctl stop firewalld.service```(或者放行端口)
