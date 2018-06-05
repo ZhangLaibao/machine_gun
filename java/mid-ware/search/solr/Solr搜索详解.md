@@ -32,9 +32,30 @@ Solr组件response writer决定了查询结果的最终呈现方式，solr支持
 包括XML Response Writer和JSON Response Writer.
 下图用来图解一个请求的处理过程：
 ![solr-request-handle.png](https://github.com/ZhangLaibao/machine_gun/blob/master/images/solr-request-handle.png)
-### Velocity Search UI
-### Relevance - 相关度
+
 ### Query Syntax and Parsing - 查询语法和解析
+#### 通用查询参数
+在简介中我们提到，solr提供的query parser支持一些相同的查询参数，以下就是这些查询参数的简介：
+
+|Parameter|Description| 
+|----|-----| 
+|defType|指定处理当前请求的query parser.|
+|sort|根据相关度或者其他指定条件排序|
+|start|从第几条开始读取结果，默认0|
+|rows|返回结果条数，默认10|
+|fq|对查询结果使用query filter|
+|fl|指定返回结果集中的字段，这些字段都必须配置成stored=true|
+|debug|返回调试信息：debug=timing仅返回查询时间信息；debug=results返回每条结果的expain信息；debug=query返回全部调试信息.|
+|explainOther|在debug信息之外的Lucence调试信息|
+|timeAllowed|最长处理时间，如果时间到了，就返回已查询到的数据.|
+|omitHeader|省略返回数据中的header，默认是false|
+|wt|指定格式化应答的response writer|
+|logParamsList|solr默认记录所有入参，这一参数可以指定日志记录哪些参数|
+##### The defType Parameter
+    defType=dismax
+##### The sort Parameter
+这一参数适用于数字类型和字符串类型的数据，排序方向不区分大小写
+
 ### Faceting - 
 ### Highlighting - 高光
 ### Spell Checking - 拼写检查
