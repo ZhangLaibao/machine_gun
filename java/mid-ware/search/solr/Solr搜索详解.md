@@ -24,9 +24,10 @@ schema. - 控制应答呈现方式的参数，比如排序，返回字段选取�
 在每个类目中，solr展示了本类目下的记录数量。聚类是指在执行搜索，而非建立索引时，将相似的结果分组的操作。聚类的结果通常
 没有明确地继承关系，但是聚类仍然很有用，它可以揭示搜索结果数据之间出人意料的共性，并且可以帮助对搜索数据并不耐心的用户获取更多信息。
 Solr还提供了一个叫做MoreLikeThis的支持，可以使用户基于先前查询的结果发起新的搜索，MoreLikeThis可以配合分类和聚类使用，
-为用户提供搜索帮助。
+为用户提供搜索帮助。    
 下图是第一个使用solr的网站，CNET的截图，用来说明以上概念：
 ![solr-faceting-clustering.png](https://github.com/ZhangLaibao/machine_gun/blob/master/images/solr-faceting-clustering.png)
+
 Solr组件response writer决定了查询结果的最终呈现方式，solr支持了很多种response writers，
 包括XML Response Writer和JSON Response Writer.
 下图用来图解一个请求的处理过程：
