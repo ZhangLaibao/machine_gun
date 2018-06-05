@@ -122,6 +122,6 @@ BASE理论是在CAP理论的基础上，根据大规模互联网系统分布式�
     ./zkServer.sh stop
 我们也可以通过如下脚本关闭zk
 
-    jps | grep -v Jps | awk '{print $1}' | xargs kill -9
+    jps | grep QuorumPeerMain | awk '{print $1}' | xargs kill -9
 5.trouble shoot   
 也许你需要关闭防火墙```systemctl stop firewalld.service```(或者放行端口)
