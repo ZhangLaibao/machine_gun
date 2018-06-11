@@ -104,4 +104,107 @@ BSON的[官网](http://bsonspec.org/)这么解释：
 |Decimal128|19|“decimal”|New in version 3.4||
 |Min key|-1|“minKey”|将一个值与BSON元素的最高值相对比|
 |Max key|127|“maxKey”|将一个值与BSON元素的最低值相对比|
- 
+
+#### MongoDB quick start 
+**启动命令，例如**
+    
+    ./mongod --dbpath=/data/db
+**创建/删除 database**   
+当我们使用use命令切换数据库时，如果指定名称的数据库不存在，MongoDB会自动帮我们创建，例如：
+    
+    use DATABASE_NAME
+我们需要使用dropDatabase()函数删除当前use的数据库，例如
+
+    db.dropDatabase()
+**创建/删除collection**   
+MongoDB 中使用 createCollection() 方法来创建集合。
+
+    db.createCollection(name, options)
+支持的options参数如下:
+
+|参数名称|类型|说明|
+|:---:|:---:|:---:|
+|capped|bool|true:创建固定大小的集合，当达到最大值时，它会自动覆盖最早的文档，当该值为 true 时，必须指定 size 参数|
+|autoIndexId|bool|true:自动在 _id 字段创建索引 默认为 false|
+|size|int|为固定集合指定一个最大值(字节计)|
+|max|int|指定固定集合中包含文档的最大数量|
+
+MongoDB 中使用 drop() 方法来删除集合。例如：
+    
+    db.collection.drop()
+如果成功删除选定集合，则 drop() 方法返回 true，否则返回 false。
+**数据CRUD**
+MongoDB 使用 insert() 或 save() 方法向集合中插入文档，如果不指定 _id 字段 save() 方法类似于 insert() 方法。
+如果指定 _id 字段，则会替换该 _id 的数据。而update() 方法用于更新已存在的文档内容  。语法如下：
+
+    db.COLLECTION_NAME.insert(document)
+例如：
+
+    db.test.insert({title: 'hello mongo', 
+        description: 'MongoDB is a Nosql database',
+        url: 'http://www.mongodb.com',
+        tags: ['mongodb', 'database', 'NoSQL'],
+        likes: 100
+    })
+我们可以通过
+
+    db.COLLECTION_NAME.find().pretty()
+查看我们刚刚保存的数据，其中pretty()函数是用来格式化返回BSON数据的
+
+    {
+        "_id" : ObjectId("5b1e57218d3cee1cac2c493a"),
+        "title" : "hello mongo",
+        "description" : "MongoDB is a Nosql database",
+        "url" : "http://www.mongodb.com",
+        "tags" : [
+            "mongodb",
+            "database",
+            "NoSQL"
+        ],
+        "likes" : 100
+    }
+    
+update函数可以理解为MyBatis生成Mapper里面的updateByExampleSelective()，语法结构如下：
+    
+    db.collection.update(
+       <query>,
+       <update>,
+       {
+         upsert: <boolean>,
+         multi: <boolean>,
+         writeConcern: <document>
+       }
+    )
+
+    db.test.update({title: 'hello mongo'},{$set:{description: 'MongoDB is a talent Nosql database'}})
+    可以理解为SQL中的update语句，将title='hello mongo'的数据的修改为'MongoDB is a talent Nosql database'
+    
+将_id="5b1e57218d3cee1cac2c493a"的数据记录整个替换。
+
+    db.collection.save({_id : ObjectId("5b1e57218d3cee1cac2c493a"),
+        title: 'hello mongo', 
+        description: 'MongoDB is a Nosql database',
+        url: 'http://www.mongodb.com',
+        tags: ['mongodb', 'database', 'NoSQL'],
+        likes: 100
+    })
+关于WriteConcern的值有如下几种说明：
+    
+    WriteConcern.NONE:没有异常抛出
+    WriteConcern.NORMAL:仅抛出网络错误异常，没有服务器错误异常
+    WriteConcern.SAFE:抛出网络错误异常、服务器错误异常；并等待服务器完成写操作。
+    WriteConcern.MAJORITY: 抛出网络错误异常、服务器错误异常；并等待一个主服务器完成写操作。
+    WriteConcern.FSYNC_SAFE: 抛出网络错误异常、服务器错误异常；写操作等待服务器将数据刷新到磁盘。
+    WriteConcern.JOURNAL_SAFE:抛出网络错误异常、服务器错误异常；写操作等待服务器提交到磁盘的日志文件。
+    WriteConcern.REPLICAS_SAFE:抛出网络错误异常、服务器错误异常；等待至少2台服务器完成写操作。
+
+remove()函数是用来移除集合中的数据。在执行remove()函数前先执行find()命令来判断执行的条件是否正确，
+这是一个比较好的习惯。remove()函数的语法如下：
+
+    db.collection.remove(
+       <query>,
+       {
+         justOne: <boolean>,
+         writeConcern: <document>
+       }
+    )
