@@ -61,7 +61,66 @@ public class Demo {
 
     }
 }
-
-
 ```
-##### 整合Spring
+##### 整合Spring Boot
+关于Spring Data的简介，我们可以参照官网：
+
+    Spring Data’s mission is to provide a familiar and consistent, Spring-based programming model 
+    for data access while still retaining the special traits of the underlying data store.
+    It makes it easy to use data access technologies, relational and non-relational databases, 
+    map-reduce frameworks, and cloud-based data services. This is an umbrella project 
+    which contains many subprojects that are specific to a given database. 
+    The projects are developed by working together with many of the companies and developers 
+    that are behind these exciting technologies.
+    
+Spring Data对关系型数据库、非关系型数据库、搜索引擎还有Hadoop都提供了专门的子项目支持，官方的支持包括
+    
+    Spring Data for Apache Cassandra
+    Spring Data Commons
+    Spring Data Couchbase
+    Spring Data Elasticsearch
+    Spring Data Envers
+    Spring Data for Pivotal GemFire
+    Spring Data Graph
+    Spring Data JDBC
+    Spring Data JDBC Extensions
+    Spring Data JPA
+    Spring Data LDAP
+    Spring Data MongoDB
+    Spring Data Neo4J
+    Spring Data Redis
+    Spring Data REST
+    Spring Data for Apache Solr
+    Spring for Apache Hadoop
+此外Spring Data的社区还提供了很多其他数据库的支持
+
+    Spring Data Aerospike - Spring Data module for Aerospike.
+    Spring Data ArangoDB - Spring Data module for ArangoDB.
+    Spring Data Couchbase - Spring Data module for Couchbase.
+    Spring Data Azure DocumentDB - Spring Data module for Microsoft Azure DocumentDB.
+    Spring Data DynamoDB - Spring Data module for DynamoDB.
+    Spring Data Elasticsearch - Spring Data module for Elasticsearch.
+    Spring Data Hazelcast - Provides Spring Data repository support for Hazelcast.
+    Spring Data Jest - Spring Data for Elasticsearch based on the Jest REST client.
+    Spring Data Neo4j - Spring based, object-graph support and repositories for Neo4j.
+    Spring Data Vault - Vault repositories built on top of Spring Data KeyValue.
+最终我们是通过Spring Data提供的支持来整合MongoDB的，Spring Boot提供了starter，我们只需要引入如下的依赖：
+    
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-mongodb</artifactId>
+    </dependency>
+当然，MongoDB的驱动包还是需要的。  
+我们使用@org.springframework.boot.autoconfigure.SpringBootApplication来注解我们的Application，
+这个注解会继承同一个包下的@EnableAutoConfiguration注解。整合时我们只需要在默认的
+application.properties添加MongoDB的连接地址即可，例如：
+    
+    spring.data.mongodb.uri=mongodb://127.0.0.1:27017/test
+这个key被spring-configuration-metadata.json引用，Spring会帮我们做好一切工作，我们只需要在我们的代码里这样
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
+装配mongoTemplate，就可以使用Spring为我们提供的API了。
+由于MongoDB的自动创建数据库和集合的特性，我们不需要预先准备好数据库和集合，例如在使用insert()方法时，
+我们只需要把我们的实体对象传入，Spring会根据对象的类名生成collection名称，而MongoDB会为我们创建这个collection。
+(我们的实体类需要通过@org.springframework.data.annotation.Id注解指定ID字段)
