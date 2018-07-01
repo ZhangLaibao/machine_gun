@@ -66,14 +66,19 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * Note that no synchronization lock is held when acquire is called as that would prevent an item from 
  * being returned to the pool. The semaphore encapsulates the synchronization needed to restrict access to the pool, 
  * separately from any synchronization needed to maintain the consistency of the pool itself.
- *
+ * 在获取池中的一个元素的时候,每个线程都必须先从Semaphore中获取一个许可,以保证这个元素可用.当这个线程使用完这个元素并将其
+ * 退还到池中的时候,这个许可同时也被退还给Semaphore,以使其他线程可以获取到许可.需要注意的是,acquire方法的调用是
+ * 不会获取同步锁的,因为这样会导致元素无法返还给池.信号量只封装了限制对池的访问所需的同步,与维护池本身一致性所需的同步是分开的.
+ * 
  * A semaphore initialized to one, and which is used such that it only has at most one permit available, 
  * can serve as a mutual exclusion lock.  This is more commonly known as a binary semaphore, because it only 
  * has two states: one permit available, or zero permits available.  When used in this way, the binary semaphore 
  * has the property (unlike many java.util.concurrent.locks.Lock implementations), that the lock can be released by a
  * thread other than the owner (as semaphores have no notion of ownership).  This can be useful in some 
  * specialized contexts, such as deadlock recovery.
- *
+ * 只持有1个许可的Semaphore可以作为互斥锁使用.因为它只有两种状态,我们也可以称之为二元信号量.由于Semaphore本身没有
+ * 持有者的概念,所以当在这种场景下使用时,锁可以被其他线程释放.在某些情况,比如死锁恢复时，这就会很有用
+ * .
  * The constructor for this class optionally accepts a fairness parameter. When set false, this class makes no
  * guarantees about the order in which threads acquire permits. In particular, barging is permitted, that is, a thread
  * invoking acquire can be allocated a permit ahead of a thread that has been waiting - logically the 
