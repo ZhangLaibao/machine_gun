@@ -1,20 +1,23 @@
 JDK1.5之后引入的java.util.concurrent包为我们提供了一些多线程之间调度和通信的信号量，用来增强最初Thread类的原始功能。
 常用的有Semaphore/CountdownLatch/CyclicBarrier/Phaser等。下面我们来阅读一下JDK中这些工具的源码并整理一下官方文档，
 做一些使用场景的示例。
-### Semaphore
+### Semaphore - 信号量
 ```java
 package java.util.concurrent;
 import java.util.Collection;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * A counting semaphore. Conceptually, a semaphore maintains a set of permits. Each acquire blocks if necessary 
- * until a permit is available, and then takes it. Each release adds a permit, potentially releasing a blocking 
+ * A counting semaphore. Conceptually, a semaphore maintains a set of permits. Each acquire() blocks if necessary 
+ * until a permit is available, and then takes it. Each release() adds a permit, potentially releasing a blocking 
  * acquirer. However, no actual permit objects are used; the Semaphore just keeps a count of the number available 
- * and acts accordingly.
- *
- * Semaphores are often used to restrict the number of threads than can access some (physical or logical) resource. 
- * For example, here is a class that uses a semaphore to control access to a pool of items:
+ * and acts accordingly. Semaphores are often used to restrict the number of threads than can access some 
+ * (physical or logical) resource. 
+ * 
+ * 从概念上讲，Semaphore维护了一个许可的集合. acquire方法会阻塞直到有一个许可可用. release方法会在集合里添加一个许可,
+ * 潜在地会释放一个请求者.Semaphore只是维护了这个可用许可的数量并做相应的处理, 并没有使用其他对象.通常Semaphore用来限制
+ * 访问物理或逻辑资源的线程数量,例如下面的例子使用Semaphore限制对池化资源的访问：
+ * 
  * class Pool {
  *   private static final int MAX_AVAILABLE = 100;
  *   private final Semaphore available = new Semaphore(MAX_AVAILABLE, true);
