@@ -77,7 +77,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * thread other than the owner (as semaphores have no notion of ownership).  This can be useful in some 
  * specialized contexts, such as deadlock recovery.
  * 只持有1个许可的Semaphore可以作为互斥锁使用.因为它只有两种状态,我们也可以称之为二元信号量.由于Semaphore本身没有
- * 持有者的概念,所以当在这种场景下使用时,锁可以被其他线程释放.在某些情况,比如死锁恢复时，这就会很有用
+ * 持有者的概念,所以当在这种场景下使用时,锁可以被其他线程释放.在某些情况,比如死锁恢复时,这就会很有用.
  * .
  * The constructor for this class optionally accepts a fairness parameter. When set false, this class makes no
  * guarantees about the order in which threads acquire permits. In particular, barging is permitted, that is, a thread
