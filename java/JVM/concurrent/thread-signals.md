@@ -82,17 +82,20 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * The constructor for this class optionally accepts a fairness parameter. When set false, this class makes no
  * guarantees about the order in which threads acquire permits. In particular, barging is permitted, that is, a thread
  * invoking acquire can be allocated a permit ahead of a thread that has been waiting - logically the 
- * new thread places itself at  the head of the queue of waiting threads. When fairness is set true, the
+ * new thread places itself at the head of the queue of waiting threads. When fairness is set true, the
  * semaphore guarantees that threads invoking any of the acquire methods are selected to obtain permits in the order 
  * in which their invocation of those methods was processed (first-in-first-out; FIFO). Note that FIFO ordering 
  * necessarily applies to specific internal points of execution within these methods.  So, it is possible for 
  * one thread to invoke acquire before another, but reach the ordering point after the other, and similarly 
  * upon return from the method. Also note that the untimed tryAcquire methods do not honor the fairness setting, 
  * but will take any permits that are available.
- *
  * Generally, semaphores used to control resource access should be initialized as fair, to ensure that no thread 
  * is starved out from accessing a resource. When using semaphores for other kinds of synchronization control,
  * the throughput advantages of non-fair ordering often outweigh fairness considerations.
+ * Semaphore的构造函数可以接受一个boolean类型的参数来指定不同线程获取信号量的公平性.传入true时,采用公平策略,也就是说
+ * 多个调用acquire()的线程会按照FIFO的顺序获取信号量,而传入false时,采用非公平策略,一个线程先于其他线程调用acquire()并不能
+ * 保证他能先于其他线程获取信号量.一般来说,当semaphore用于控制资源访问时,推荐使用公平策略,防止线程饥饿,在其他场景下,
+ * 吞吐量优先的非公平策略性能更高.
  *
  * This class also provides convenience methods to acquire(int) and release(int) multiple permits at a time.  
  * Beware of the increased risk of indefinite postponement when these methods are used without fairness set true.
@@ -374,6 +377,92 @@ public class Semaphore implements java.io.Serializable {
      */
     protected Collection<Thread> getQueuedThreads() {
         return sync.getQueuedThreads();
+    }
+}
+```
+下面我们模拟这样的场景，公司只有三台打印机，但是现在有十个人需要打印文件，那么我们就可以使用Semaphore来做打印任务的调度:
+```java
+public class PrintQueue {
+
+    // 信号量
+    private Semaphore semaphore;
+
+    // 打印机状态
+    private boolean[] printerStats;
+
+    /*
+     * semaphore提供的acquire()/release()方法当然是线程安全的,
+     * 但是这些线程之间共享的数据不归semaphore管辖,需要单独处理加锁
+     */
+    private Lock lock;
+
+    public PrintQueue() {
+        this.semaphore = new Semaphore(3);
+        this.lock = new ReentrantLock();
+        this.printerStats = new boolean[3];
+        for (int i = 0; i < printerStats.length; i++) {
+            printerStats[i] = true;
+        }
+    }
+
+    public void print(Object doc) {
+        try {
+            semaphore.acquire();// will block
+            int printerNo = getPrinter();
+            long elapse = (long) (Math.random() * 10);
+
+            // print simulation
+            TimeUnit.SECONDS.sleep(elapse);
+            System.out.printf("%s: PrintQueue: Printing a Job in Printer %d during %d seconds\n",
+                    Thread.currentThread().getName(), printerNo, elapse);
+
+            printerStats[printerNo] = true;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaphore.release();
+        }
+    }
+
+    private int getPrinter() {
+        int ret = -1;
+        lock.lock();
+        for (int i = 0; i < printerStats.length; i++) {
+            if (printerStats[i]) {
+                printerStats[i] = false;
+                ret = i;
+                break;
+            }
+        }
+        lock.unlock();
+        return ret;
+    }
+}
+
+class PrintJob implements Runnable {
+
+    private PrintQueue queue;
+
+    public PrintJob(PrintQueue queue) {
+        this.queue = queue;
+    }
+
+    @Override
+    public void run() {
+        System.out.printf("%s: Going to print a job\n", Thread.currentThread().getName());
+        queue.print(new Object());
+        System.out.printf("%s: The document has been printed\n", Thread.currentThread().getName());
+    }
+}
+
+class Test {
+
+    public static void main(String[] args) {
+
+        PrintQueue queue = new PrintQueue();
+        for (int i = 0; i < 10; i++)
+            new Thread(new PrintJob(queue)).start();
+
     }
 }
 ```
@@ -1768,3 +1857,6 @@ public class Phaser {
     }
 }
 ```
+
+Special Thanks:
+https://www.cnblogs.com/uodut/p/6830939.html
