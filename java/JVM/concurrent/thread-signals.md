@@ -475,6 +475,8 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 /**
  * A synchronization aid that allows one or more threads to wait until a set of operations being performed 
  * in other threads completes.
+ * 一个多线程同步辅助,使一个或多个线程等待,直到其他线程中的某些操作执行完毕.
+ * 
  * A CountDownLatch is initialized with a given count. The await() methods block until the current count reaches
  * zero due to invocations of the countDown() method, after which all waiting threads are released and any subsequent 
  * invocations of await() return immediately. This is a one-shot phenomenon -- the count cannot be reset. 
@@ -707,7 +709,7 @@ class Participant implements Runnable {
         }
         conference.arrive(this);
     }
-    
+    // ...
 }
 
 class Test {
@@ -1047,6 +1049,78 @@ public class CyclicBarrier {
             return parties - count;
         } finally {
             lock.unlock();
+        }
+    }
+}
+```
+我们考虑这样的场景，我们有一个很大的数字矩阵，我们要在这个矩阵中查找某个值的出现次数，此时我们可以将这个矩阵按照一定
+的规则拆分，然后用多个线程分别去处理一份数据，再将这些线程的处理结果汇总起来。
+在这个例子中我们使用了Java的N维数组库ND4J，关于ND4J的介绍，感兴趣的朋友可以阅读以下官方的文档，
+也可以类比Python的经典数学类库NumPy。
+```java
+public class Searcher implements Runnable {
+
+    private Result result;
+
+    private CyclicBarrier barrier;
+    private INDArray row;
+    private double search;
+
+    public Searcher(CyclicBarrier barrier, INDArray row, double search, Result result) {
+        this.barrier = barrier;
+        this.search = search;
+        this.row = row;
+        this.result = result;
+    }
+
+    @Override
+    public void run() {
+
+        INDArray lt = row.lt(search);
+        int i = lt.sumNumber().intValue();
+        result.getData().add(i);
+
+        System.out.printf("%s, we've searched through line data of %s, got %d \n", Thread.currentThread().getName(), row.toString(), i);
+        try {
+            barrier.await();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Reducer implements Runnable {
+
+    private Result result;
+
+    public Reducer(Result result) {
+        this.result = result;
+    }
+
+    @Override
+    public void run() {
+        int total = 0;
+        for (int i : result.getData()) {
+            total += i;
+        }
+        System.out.printf("%s, The final count is : %d \n", Thread.currentThread().getName(), total);
+    }
+}
+
+class Test {
+
+    public static void main(String[] args) {
+        INDArray rand = Nd4j.rand(10, 20);
+        System.out.println(rand);
+
+        int rows = rand.rows();
+
+        Result result = new Result();
+        Reducer reducer = new Reducer(result);
+        CyclicBarrier barrier = new CyclicBarrier(rows, reducer);
+
+        for (int i = 0; i < rows; i++) {
+            new Thread(new Searcher(barrier, rand.getRow(i), 0.50, result)).start();
         }
     }
 }
