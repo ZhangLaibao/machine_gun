@@ -657,6 +657,73 @@ public class CountDownLatch {
 }
 
 ```
+我们使用CountdownLatch来实现这样一个场景，一个视频会议，需要10个与会人到齐之后开始
+```java
+public class VideoConference implements Runnable {
+
+    private CountDownLatch latch;
+
+    public VideoConference(int num) {
+        this.latch = new CountDownLatch(num);
+    }
+
+    // 我们使用同步方法并非是考虑线程安全，知识为了保证同一个线程的两行打印语句输出在一起
+    public synchronized void arrive(Participant par) {
+        System.out.printf("%s has arrived.\n", par.getName());
+        latch.countDown();//调用countDown()方法，使内部计数器减1
+        System.out.printf("VideoConference: Waiting for %d participants.\n", latch.getCount());
+    }
+
+    @Override
+    public void run() {
+        try {
+            latch.await();// 阻塞直到latch内部计数为0
+            System.out.printf("VideoConference: All the participants have come\n");
+            System.out.printf("VideoConference: Let's start...\n");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Participant implements Runnable {
+
+    private String name;
+
+    private VideoConference conference;
+
+    public Participant(VideoConference conference, String name) {
+        this.conference = conference;
+        this.name = name;
+    }
+
+    @Override
+    public void run() {
+        Long duration = (long) (Math.random() * 10);
+        try {
+            TimeUnit.SECONDS.sleep(duration);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        conference.arrive(this);
+    }
+    
+}
+
+class Test {
+
+    public static void main(String[] args) {
+
+        VideoConference conference = new VideoConference(10);
+        new Thread(conference).start();
+
+        for (int i = 0; i < 10; i++)
+            new Thread(new Participant(conference, "man - " + i)).start();
+
+    }
+
+}
+```
 ### CyclicBarrier
 ```java
 package java.util.concurrent;
