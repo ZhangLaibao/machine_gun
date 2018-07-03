@@ -1053,10 +1053,10 @@ public class CyclicBarrier {
     }
 }
 ```
-我们考虑这样的场景，我们有一个很大的数字矩阵，我们要在这个矩阵中查找某个值的出现次数，此时我们可以将这个矩阵按照一定
+我们考虑这样的场景，我们有一个很大的数字矩阵，我们要在这个矩阵中查找符合某种条件的元素个数，此时我们可以将这个矩阵按照一定
 的规则拆分，然后用多个线程分别去处理一份数据，再将这些线程的处理结果汇总起来。
 在这个例子中我们使用了Java的N维数组库ND4J，关于ND4J的介绍，感兴趣的朋友可以阅读以下官方的文档，
-也可以类比Python的经典数学类库NumPy。
+也可以类比Python的经典数学类库NumPy，当然，通过ND4J提供的矩阵计算方法，也许我们一行代码就可以实现这个需求，所以本例只做用法示例。
 ```java
 public class Searcher implements Runnable {
 
@@ -1997,6 +1997,92 @@ public class Phaser {
         }
     }
 }
+```
+Phaser的功能可以理解为以上几个工具的增强和综合，可以帮助我们实现多线程多步骤业务场景的实现，我们也综合以上几个例子的场景，
+设计这样一个场景
+1、等待十个与会人到场开始会议
+2、会议开始，对某项事务投票，等待十个与会人投票结束
+```java
+public class VoteConference implements Runnable {
+
+    private List<Integer> results = new ArrayList<>();
+    private Set<Participant> participants;
+
+    public VoteConference(Set<Participant> participants) {
+        this.participants = participants;
+    }
+
+    @Override
+    public void run() {
+        for (Participant participant : participants)
+            new Thread(participant).start();
+    }
+
+    public void vote(int voteRsult) {
+        results.add(voteRsult);
+    }
+}
+
+class Participant implements Runnable {
+
+    private Phaser phaser;
+    private VoteConference conference;
+
+    public Participant(VoteConference conference, Phaser phaser) {
+        this.conference = conference;
+        this.phaser = phaser;
+    }
+
+    @Override
+    public void run() {
+        phaser.arriveAndAwaitAdvance();
+        // 到场
+        onArrive();
+        // 投票
+        onVote();
+    }
+
+    private void onArrive() {
+        Long duration = (long) (Math.random() * 10);
+        try {
+            TimeUnit.SECONDS.sleep(duration);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.printf("%s has arrived after %d seconds \n", Thread.currentThread().getName(), duration);
+        phaser.arriveAndAwaitAdvance();
+    }
+
+    private void onVote() {
+        Long duration = (long) (Math.random() * 10);
+        try {
+            TimeUnit.SECONDS.sleep(duration);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        int voteRsult = (int) (Math.random() * 2);
+        conference.vote(voteRsult);
+        System.out.printf("%s has voted after %d seconds with result %d \n", Thread.currentThread().getName(), duration, (long) (Math.random() * 2));
+        phaser.arriveAndAwaitAdvance();
+    }
+
+}
+
+public class Test {
+
+    public static void main(String[] args) {
+        Phaser phaser = new Phaser(10);
+        Set<Participant> participants = new HashSet<>();
+        VoteConference conference = new VoteConference(participants);
+        for (int i = 0; i < 10; i++)
+            participants.add(new Participant(conference, phaser));
+        
+        new Thread(conference).start();
+    }
+
+}
+
 ```
 
 Special Thanks:
