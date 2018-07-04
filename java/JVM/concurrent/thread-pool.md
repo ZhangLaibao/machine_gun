@@ -692,67 +692,51 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      *   workerCount, indicating the effective number of threads
      *   runState,    indicating whether running, shutting down etc
      *
-     * In order to pack them into one int, we limit workerCount to
-     * (2^29)-1 (about 500 million) threads rather than (2^31)-1 (2
-     * billion) otherwise representable. If this is ever an issue in
-     * the future, the variable can be changed to be an AtomicLong,
-     * and the shift/mask constants below adjusted. But until the need
-     * arises, this code is a bit faster and simpler using an int.
+     * In order to pack them into one int, we limit workerCount to (2^29)-1 (about 500 million) threads rather than 
+     * (2^31)-1 (2 billion) otherwise representable. If this is ever an issue in the future, the variable can be 
+     * changed to be an AtomicLong, and the shift/mask constants below adjusted. But until the need arises, this code 
+     * is a bit faster and simpler using an int.
      *
-     * The workerCount is the number of workers that have been
-     * permitted to start and not permitted to stop.  The value may be
-     * transiently different from the actual number of live threads,
-     * for example when a ThreadFactory fails to create a thread when
-     * asked, and when exiting threads are still performing
-     * bookkeeping before terminating. The user-visible pool size is
-     * reported as the current size of the workers set.
+     * The workerCount is the number of workers that have been permitted to start and not permitted to stop.
+     * The value may be transiently different from the actual number of live threads, for example when a ThreadFactory 
+     * fails to create a thread when asked, and when exiting threads are still performing bookkeeping before 
+     * terminating. The user-visible pool size is reported as the current size of the workers set.
      *
      * The runState provides the main lifecycle control, taking on values:
      *
-     *   RUNNING:  Accept new tasks and process queued tasks
-     *   SHUTDOWN: Don't accept new tasks, but process queued tasks
-     *   STOP:     Don't accept new tasks, don't process queued tasks,
-     *             and interrupt in-progress tasks
-     *   TIDYING:  All tasks have terminated, workerCount is zero,
-     *             the thread transitioning to state TIDYING
-     *             will run the terminated() hook method
-     *   TERMINATED: terminated() has completed
+     *   RUNNING:       Accept new tasks and process queued tasks
+     *   SHUTDOWN:      Don't accept new tasks, but process queued tasks
+     *   STOP:          Don't accept new tasks, don't process queued tasks, and interrupt in-progress tasks
+     *   TIDYING:       All tasks have terminated, workerCount is zero, the thread transitioning to state TIDYING
+     *                  will run the terminated() hook method
+     *   TERMINATED:    terminated() has completed
      *
-     * The numerical order among these values matters, to allow
-     * ordered comparisons. The runState monotonically increases over
-     * time, but need not hit each state. The transitions are:
+     * The numerical order among these values matters, to allow ordered comparisons. The runState monotonically 
+     * increases over time, but need not hit each state. The transitions are:
      *
-     * RUNNING -> SHUTDOWN
-     *    On invocation of shutdown(), perhaps implicitly in finalize()
-     * (RUNNING or SHUTDOWN) -> STOP
-     *    On invocation of shutdownNow()
-     * SHUTDOWN -> TIDYING
-     *    When both queue and pool are empty
-     * STOP -> TIDYING
-     *    When pool is empty
-     * TIDYING -> TERMINATED
-     *    When the terminated() hook method has completed
+     * RUNNING -> SHUTDOWN:             On invocation of shutdown(), perhaps implicitly in finalize()
+     * (RUNNING or SHUTDOWN) -> STOP:   On invocation of shutdownNow()
+     * SHUTDOWN -> TIDYING:             When both queue and pool are empty
+     * STOP -> TIDYING:                 When pool is empty
+     * TIDYING -> TERMINATED:           When the terminated() hook method has completed
      *
-     * Threads waiting in awaitTermination() will return when the
-     * state reaches TERMINATED.
+     * Threads waiting in awaitTermination() will return when the state reaches TERMINATED.
      *
-     * Detecting the transition from SHUTDOWN to TIDYING is less
-     * straightforward than you'd like because the queue may become
-     * empty after non-empty and vice versa during SHUTDOWN state, but
-     * we can only terminate if, after seeing that it is empty, we see
-     * that workerCount is 0 (which sometimes entails a recheck -- see
-     * below).
+     * Detecting the transition from SHUTDOWN to TIDYING is less straightforward than you'd like because the queue 
+     * may become empty after non-empty and vice versa during SHUTDOWN state, but we can only terminate if, 
+     * after seeing that it is empty, we see that workerCount is 0 (which sometimes entails a recheck ).
      */
-    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
-    private static final int COUNT_BITS = Integer.SIZE - 3;
-    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
+    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));// 初始位RUNNING
+    private static final int COUNT_BITS = Integer.SIZE - 3;// 29
+    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;// =7 HEX:00000000000000000000000000000111
 
+    // ctl是一个32位的整数，最高的3位表示状态，剩下的29位表示worker线程的数量（因此最大允许的线程数就是2的29方减1）。
     // runState is stored in the high-order bits
-    private static final int RUNNING    = -1 << COUNT_BITS;
-    private static final int SHUTDOWN   =  0 << COUNT_BITS;
-    private static final int STOP       =  1 << COUNT_BITS;
-    private static final int TIDYING    =  2 << COUNT_BITS;
-    private static final int TERMINATED =  3 << COUNT_BITS;
+    private static final int RUNNING    = -1 << COUNT_BITS;// HEX: 11100000000000000000000000000000
+    private static final int SHUTDOWN   =  0 << COUNT_BITS;// HEX: 00000000000000000000000000000000
+    private static final int STOP       =  1 << COUNT_BITS;// HEX: 00100000000000000000000000000000
+    private static final int TIDYING    =  2 << COUNT_BITS;// HEX: 01000000000000000000000000000000
+    private static final int TERMINATED =  3 << COUNT_BITS;// HEX: 01100000000000000000000000000000
 
     // Packing and unpacking ctl
     private static int runStateOf(int c)     { return c & ~CAPACITY; }
@@ -1235,30 +1219,21 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      */
 
     /**
-     * Checks if a new worker can be added with respect to current
-     * pool state and the given bound (either core or maximum). If so,
-     * the worker count is adjusted accordingly, and, if possible, a
-     * new worker is created and started, running firstTask as its
-     * first task. This method returns false if the pool is stopped or
-     * eligible to shut down. It also returns false if the thread
-     * factory fails to create a thread when asked.  If the thread
-     * creation fails, either due to the thread factory returning
-     * null, or due to an exception (typically OutOfMemoryError in
-     * Thread.start()), we roll back cleanly.
+     * Checks if a new worker can be added with respect to current pool state and the given bound 
+     * (either core or maximum). If so, the worker count is adjusted accordingly, and, if possible, a new worker 
+     * is created and started, running firstTask as its first task. This method returns false if the pool is stopped 
+     * or eligible to shut down. It also returns false if the thread factory fails to create a thread when asked.
+     * If the thread creation fails, either due to the thread factory returning null, or due to an exception 
+     * (typically OutOfMemoryError in Thread.start()), we roll back cleanly.
      *
-     * @param firstTask the task the new thread should run first (or
-     * null if none). Workers are created with an initial first task
-     * (in method execute()) to bypass queuing when there are fewer
-     * than corePoolSize threads (in which case we always start one),
-     * or when the queue is full (in which case we must bypass queue).
-     * Initially idle threads are usually created via
-     * prestartCoreThread or to replace other dying workers.
+     * firstTask is the task the new thread should run first (or null if none). Workers are created with an 
+     * initial first task (in method execute()) to bypass queuing when there are fewer than corePoolSize threads 
+     * (in which case we always start one), or when the queue is full (in which case we must bypass queue).
+     * Initially idle threads are usually created via prestartCoreThread or to replace other dying workers.
      *
-     * @param core if true use corePoolSize as bound, else
-     * maximumPoolSize. (A boolean indicator is used here rather than a
-     * value to ensure reads of fresh values after checking other pool
-     * state).
-     * @return true if successful
+     * param core means: if true use corePoolSize as bound, else maximumPoolSize. 
+     * (A boolean indicator is used here rather than a value to ensure reads of fresh values after 
+     * checking other pool state).
      */
     private boolean addWorker(Runnable firstTask, boolean core) {
         retry:
@@ -1267,16 +1242,12 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             int rs = runStateOf(c);
 
             // Check if queue empty only if necessary.
-            if (rs >= SHUTDOWN &&
-                ! (rs == SHUTDOWN &&
-                   firstTask == null &&
-                   ! workQueue.isEmpty()))
+            if (rs >= SHUTDOWN && ! (rs == SHUTDOWN && firstTask == null && ! workQueue.isEmpty()))
                 return false;
 
             for (;;) {
                 int wc = workerCountOf(c);
-                if (wc >= CAPACITY ||
-                    wc >= (core ? corePoolSize : maximumPoolSize))
+                if (wc >= CAPACITY || wc >= (core ? corePoolSize : maximumPoolSize))
                     return false;
                 if (compareAndIncrementWorkerCount(c))
                     break retry;
@@ -1298,18 +1269,15 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                 mainLock.lock();
                 try {
                     // Recheck while holding lock.
-                    // Back out on ThreadFactory failure or if
-                    // shut down before lock acquired.
+                    // Back out on ThreadFactory failure or if shut down before lock acquired.
                     int rs = runStateOf(ctl.get());
 
-                    if (rs < SHUTDOWN ||
-                        (rs == SHUTDOWN && firstTask == null)) {
-                        if (t.isAlive()) // precheck that t is startable
-                            throw new IllegalThreadStateException();
+                    if (rs < SHUTDOWN || (rs == SHUTDOWN && firstTask == null)) {
+                        // precheck that t is startable
+                        if (t.isAlive()) throw new IllegalThreadStateException();
                         workers.add(w);
                         int s = workers.size();
-                        if (s > largestPoolSize)
-                            largestPoolSize = s;
+                        if (s > largestPoolSize) largestPoolSize = s;
                         workerAdded = true;
                     }
                 } finally {
@@ -1685,57 +1653,35 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     }
 
     /**
-     * Executes the given task sometime in the future.  The task
-     * may execute in a new thread or in an existing pooled thread.
-     *
-     * If the task cannot be submitted for execution, either because this
-     * executor has been shutdown or because its capacity has been reached,
-     * the task is handled by the current {@code RejectedExecutionHandler}.
-     *
-     * @param command the task to execute
-     * @throws RejectedExecutionException at discretion of
-     *         {@code RejectedExecutionHandler}, if the task
-     *         cannot be accepted for execution
-     * @throws NullPointerException if {@code command} is null
+     * Executes the given task sometime in the future. The task may execute in a new thread or in an existing pooled 
+     * thread. If the task cannot be submitted for execution, either because this executor has been shutdown or because 
+     * its capacity has been reached, the task is handled by the current RejectedExecutionHandler.
      */
     public void execute(Runnable command) {
-        if (command == null)
-            throw new NullPointerException();
+        if (command == null) throw new NullPointerException();
         /*
          * Proceed in 3 steps:
-         *
-         * 1. If fewer than corePoolSize threads are running, try to
-         * start a new thread with the given command as its first
-         * task.  The call to addWorker atomically checks runState and
-         * workerCount, and so prevents false alarms that would add
-         * threads when it shouldn't, by returning false.
-         *
-         * 2. If a task can be successfully queued, then we still need
-         * to double-check whether we should have added a thread
-         * (because existing ones died since last checking) or that
-         * the pool shut down since entry into this method. So we
-         * recheck state and if necessary roll back the enqueuing if
-         * stopped, or start a new thread if there are none.
-         *
-         * 3. If we cannot queue task, then we try to add a new
-         * thread.  If it fails, we know we are shut down or saturated
-         * and so reject the task.
+         * 1. If fewer than corePoolSize threads are running, try to start a new thread with the given command as 
+         * its first task. The call to addWorker atomically checks runState and workerCount, and so prevents 
+         * false alarms that would add threads when it shouldn't, by returning false.
+         * 2. If a task can be successfully queued, then we still need to double-check whether we should have added 
+         * a thread (because existing ones died since last checking) or that the pool shut down since entry into this 
+         * method. So we recheck state and if necessary roll back the enqueuing if stopped, or start a new thread 
+         * if there are none.
+         * 3. If we cannot queue task, then we try to add a new thread. If it fails, we know we are shut down or 
+         * saturated and so reject the task.
          */
         int c = ctl.get();
         if (workerCountOf(c) < corePoolSize) {
-            if (addWorker(command, true))
-                return;
+            if (addWorker(command, true)) return;
             c = ctl.get();
         }
         if (isRunning(c) && workQueue.offer(command)) {
             int recheck = ctl.get();
-            if (! isRunning(recheck) && remove(command))
-                reject(command);
-            else if (workerCountOf(recheck) == 0)
-                addWorker(null, false);
+            if (! isRunning(recheck) && remove(command)) reject(command);
+            else if (workerCountOf(recheck) == 0) addWorker(null, false);
         }
-        else if (!addWorker(command, false))
-            reject(command);
+        else if (!addWorker(command, false)) reject(command);
     }
 
     /**
