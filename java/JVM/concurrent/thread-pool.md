@@ -728,7 +728,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      */
     private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));// 初始位RUNNING
     private static final int COUNT_BITS = Integer.SIZE - 3;// 29
-    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;// =7 HEX:00000000000000000000000000000111
+    // CAPACITY  HEX:00011111111111111111111111111111
+    // ~CAPACITY HEX:11100000000000000000000000000000
+    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
 
     // ctl是一个32位的整数，最高的3位表示状态，剩下的29位表示worker线程的数量（因此最大允许的线程数就是2的29方减1）。
     // runState is stored in the high-order bits
@@ -1229,7 +1231,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * firstTask is the task the new thread should run first (or null if none). Workers are created with an 
      * initial first task (in method execute()) to bypass queuing when there are fewer than corePoolSize threads 
      * (in which case we always start one), or when the queue is full (in which case we must bypass queue).
-     * Initially idle threads are usually created via prestartCoreThread or to replace other dying workers.
+     * Initially idle threads are usually created via prestartCoreThread() or to replace other dying workers.
      *
      * param core means: if true use corePoolSize as bound, else maximumPoolSize. 
      * (A boolean indicator is used here rather than a value to ensure reads of fresh values after 
@@ -2412,3 +2414,6 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     }
 }
 ```
+Special Thanks:
+https://blog.csdn.net/rebirth_love/article/details/51954836
+http://www.cnblogs.com/wanly3643/p/3911765.html
