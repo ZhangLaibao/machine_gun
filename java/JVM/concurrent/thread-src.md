@@ -925,7 +925,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
          */
         TERMINATED;
 ```
-        // ![thread-status.jpg](https://github.com/ZhangLaibao/machine_gun/blob/master/images/thread-status.jpg)    
+![thread-status.jpg](https://github.com/ZhangLaibao/machine_gun/blob/master/images/thread-status.jpg)    
 ```java
     }
 
