@@ -34,47 +34,6 @@ import sun.security.util.SecurityConstants;
  * 2.All threads that are not daemon threads have died, either by returning from the call to the run method or 
  * by throwing an exception that propagates beyond the run method.
  * 
- * There are two ways to create a new thread of execution. One is to declare a class to be a subclass of Thread. 
- * This subclass should override the run method of class Thread. An instance of the subclass can then be
- * allocated and started. For example, a thread that computes primes larger than a stated value could 
- * be written as follows:
- * 
- *     class PrimeThread extends Thread {
- *         long minPrime;
- *         PrimeThread(long minPrime) {
- *             this.minPrime = minPrime;
- *         }
- *
- *         public void run() {
- *             // compute primes larger than minPrime
- *         }
- *     }
- * 
- * The following code would then create a thread and start it running:
- * 
- *     PrimeThread p = new PrimeThread(143);
- *     p.start();
- * 
- * The other way to create a thread is to declare a class that implements the Runnable interface. That class then
- * implements the run method. An instance of the class can then be allocated, passed as an argument when creating 
- * Thread and started. The same example in this other style looks like the following:
- * 
- *     class PrimeRun implements Runnable {
- *         long minPrime;
- *         PrimeRun(long minPrime) {
- *             this.minPrime = minPrime;
- *         }
- *
- *         public void run() {
- *             // compute primes larger than minPrime
- *         }
- *     }
- * 
- * The following code would then create a thread and start it running:
- * 
- *     PrimeRun p = new PrimeRun(143);
- *     new Thread(p).start();
- * 
  * Every thread has a name for identification purposes. More than one thread may have the same name. 
  * If a name is not specified when a thread is created, a new name is generated for it.
  * Unless otherwise noted, passing a null argument to a constructor or method in this class will cause a
@@ -172,13 +131,9 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         }
     }
 
-    // The minimum priority that a thread can have.
+    // 线程优先级[1,10]，默认为5
     public final static int MIN_PRIORITY = 1;
-
-    // The default priority that is assigned to a thread.
     public final static int NORM_PRIORITY = 5;
-
-    // The maximum priority that a thread can have.
     public final static int MAX_PRIORITY = 10;
 
     // Returns a reference to the currently executing thread object. 
@@ -281,9 +236,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         tid = nextThreadID();
     }
 
-    /**
-     * Throws CloneNotSupportedException as a Thread can not be meaningfully cloned. Construct a new Thread instead.
-     */
+    // Throws CloneNotSupportedException as a Thread can not be meaningfully cloned. Construct a new Thread instead.
     @Override
     protected Object clone() throws CloneNotSupportedException {
         throw new CloneNotSupportedException();
@@ -300,10 +253,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
 
     public Thread(Runnable target) {
         init(null, target, "Thread-" + nextThreadNum(), 0);
-    }
-
-    Thread(Runnable target, AccessControlContext acc) {
-        init(null, target, "Thread-" + nextThreadNum(), 0, acc);
     }
 
     public Thread(ThreadGroup group, Runnable target) {
@@ -359,6 +308,11 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
      */
     public Thread(ThreadGroup group, Runnable target, String name, long stackSize) {
         init(group, target, name, stackSize);
+    }
+
+
+    Thread(Runnable target, AccessControlContext acc) {
+        init(null, target, "Thread-" + nextThreadNum(), 0, acc);
     }
 
     /**
@@ -881,7 +835,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         RUNNABLE,
 
         /**
-         * 等待锁 - 被阻塞
+         * 被阻塞 - 等待锁，此处的锁是指synchronize语句块或者方法持有的对象锁，而非java.util.concurrent中的工具类
          * 
          * Thread state for a thread blocked waiting for a monitor lock. A thread in the blocked state is 
          * waiting for a monitor lock to enter a synchronized block/method or reenter a synchronized block/method 
@@ -924,11 +878,8 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
          * Thread state for a terminated thread. The thread has completed execution.
          */
         TERMINATED;
-```
-![thread-status.jpg](https://github.com/ZhangLaibao/machine_gun/blob/master/images/thread-status.jpg)    
-```java
     }
-
+    
     /**
      * Returns the state of this thread.
      * This method is designed for use in monitoring of the system state, not for synchronization control.
@@ -1099,5 +1050,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
     private native void interrupt0();
     private native void setNativeName(String name);
 }
-
 ```
+
+关于上述状态以及流转，我们可以通过这张图来清晰地认识：
+![thread-status.jpg](https://github.com/ZhangLaibao/machine_gun/blob/master/images/thread-status.jpg) 
