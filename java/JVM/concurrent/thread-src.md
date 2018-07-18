@@ -1,23 +1,4 @@
 ```java
-package java.lang;
-
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
-import java.security.AccessController;
-import java.security.AccessControlContext;
-import java.security.PrivilegedAction;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.LockSupport;
-import sun.nio.ch.Interruptible;
-import sun.reflect.CallerSensitive;
-import sun.reflect.Reflection;
-import sun.security.util.SecurityConstants;
-
-
 /**
  * A thread is a thread of execution in a program. The JVM allows an application to have multiple threads of
  * execution running concurrently. Every thread has a priority. Threads with higher priority are executed 
@@ -48,21 +29,17 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
 
     private volatile String name;
     private int            priority;
-    private Thread         threadQ;
-    private long           eetop;
-
+    
+    private Thread         threadQ;// 干啥的？
+    private long           eetop;// 干啥的
     /* Whether or not to single_step this thread. */
     private boolean     single_step;
-
-    /* Whether or not the thread is a daemon thread. */
-    private boolean     daemon = false;
-
     /* JVM state */
     private boolean     stillborn = false;
-
+    /* Whether or not the thread is a daemon thread. */
+    private boolean     daemon = false;
     /* What will be run. */
     private Runnable target;
-
     /* The group of this thread */
     private ThreadGroup group;
 
@@ -78,13 +55,11 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         return threadInitNumber++;
     }
 
-    /* ThreadLocal values pertaining to this thread. This map is maintained by the ThreadLocal class.*/
-    ThreadLocal.ThreadLocalMap threadLocals = null;
-
-    /*
-     * InheritableThreadLocal values pertaining to this thread. This map is
-     * maintained by the InheritableThreadLocal class.
+    /**
+     * ThreadLocal values pertaining to this thread & InheritableThreadLocal values pertaining to this thread.
+     * This map is maintained by the ThreadLocal class.
      */
+    ThreadLocal.ThreadLocalMap threadLocals = null;
     ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
 
     /*
@@ -104,7 +79,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
 
     /* Java thread status for tools, initialized to indicate thread 'not yet started' */
     private volatile int threadStatus = 0;
-
 
     private static synchronized long nextThreadID() {
         return ++threadSeqNumber;
@@ -155,13 +129,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
 
     /**
      * Causes the currently executing thread to sleep (temporarily cease execution) for the specified number of 
-     * milliseconds, subject to the precision and accuracy of system timers and schedulers. The thread does not 
-     * lose ownership of any monitors.
-     */
-    public static native void sleep(long millis) throws InterruptedException;
-
-    /**
-     * Causes the currently executing thread to sleep (temporarily cease execution) for the specified number of 
      * milliseconds plus the specified number of nanoseconds, subject to the precision and accuracy of system
      * timers and schedulers. The thread does not lose ownership of any monitors.
      */
@@ -178,11 +145,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         sleep(millis);
     }
 
-    /* Initializes a Thread with the current AccessControlContext. */
-    private void init(ThreadGroup g, Runnable target, String name, long stackSize) {
-        init(g, target, name, stackSize, null);
-    }
-
     private void init(ThreadGroup g, Runnable target, String name, long stackSize, AccessControlContext acc) {
         if (name == null) 
             throw new NullPointerException("name cannot be null");
@@ -193,7 +155,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         SecurityManager security = System.getSecurityManager();
         if (g == null) {
             /* Determine if it's an applet or not */
-
             /* If there is a security manager, ask the security manager what to do. */
             if (security != null) {
                 g = security.getThreadGroup();
@@ -227,6 +188,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         this.inheritedAccessControlContext = acc != null ? acc : AccessController.getContext();
         this.target = target;
         setPriority(priority);
+        // 将父线程可继承的线程变量置入子线程的inheritableThreadLocals
         if (parent.inheritableThreadLocals != null)
             this.inheritableThreadLocals = ThreadLocal.createInheritedMap(parent.inheritableThreadLocals);
         /* Stash the specified stack size in case the VM cares */
@@ -240,39 +202,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
     @Override
     protected Object clone() throws CloneNotSupportedException {
         throw new CloneNotSupportedException();
-    }
-
-    /**
-     * Allocates a new Thread object. This constructor has the same effect as Thread(ThreadGroup,Runnable,String) 
-     * Thread(null, null, gname), where gname is a newly generated name. Automatically generated names are 
-     * of the form "Thread-"+n, where n is an integer.
-     */
-    public Thread() {
-        init(null, null, "Thread-" + nextThreadNum(), 0);
-    }
-
-    public Thread(Runnable target) {
-        init(null, target, "Thread-" + nextThreadNum(), 0);
-    }
-
-    public Thread(ThreadGroup group, Runnable target) {
-        init(group, target, "Thread-" + nextThreadNum(), 0);
-    }
-
-    public Thread(String name) {
-        init(null, null, name, 0);
-    }
-
-    public Thread(ThreadGroup group, String name) {
-        init(group, null, name, 0);
-    }
-
-    public Thread(Runnable target, String name) {
-        init(null, target, name, 0);
-    }
-
-    public Thread(ThreadGroup group, Runnable target, String name) {
-        init(group, target, name, 0);
     }
 
     /**
@@ -310,11 +239,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         init(group, target, name, stackSize);
     }
 
-
-    Thread(Runnable target, AccessControlContext acc) {
-        init(null, target, "Thread-" + nextThreadNum(), 0, acc);
-    }
-
     /**
      * Causes this thread to begin execution; the Java Virtual Machine calls the run method of this thread.
      * 
@@ -328,7 +252,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         /**
          * This method is not invoked for the main method thread or "system" group threads created/set up by the VM. 
          * Any new functionality added to this method in the future may have to also be added to the VM.
-         *
          * A zero status value corresponds to state "NEW".
          */
         if (threadStatus != 0)
@@ -468,16 +391,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         }
     }
 
-    /**
-     * Returns this thread's priority.
-     */
-    public final int getPriority() {
-        return priority;
-    }
-
-    /**
-     * Changes the name of this thread to be equal to the argument name 
-     */
+    /** Changes the name of this thread to be equal to the argument name  */
     public final synchronized void setName(String name) {
         checkAccess();
         if (name == null) {
@@ -488,21 +402,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         if (threadStatus != 0) {
             setNativeName(name);
         }
-    }
-
-    /**
-     * Returns this thread's name.
-     */
-    public final String getName() {
-        return name;
-    }
-
-    /**
-     * Returns the thread group to which this thread belongs. This method returns null if this thread has died
-     * (been stopped).
-     */
-    public final ThreadGroup getThreadGroup() {
-        return group;
     }
 
     /**
@@ -563,9 +462,7 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
         }
     }
 
-    /**
-     * Waits at most millis milliseconds plus nanos nanoseconds for this thread to die.
-     */
+    /** Waits at most millis milliseconds plus nanos nanoseconds for this thread to die. */
     public final synchronized void join(long millis, int nanos) throws InterruptedException {
 
         if (millis < 0)  
@@ -605,13 +502,6 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
             throw new IllegalThreadStateException();
  
         daemon = on;
-    }
-
-    /**
-     * Tests if this thread is a daemon thread.
-     */
-    public final boolean isDaemon() {
-        return daemon;
     }
 
     /**
