@@ -78,79 +78,47 @@
 public interface Lock {
 
     /**
-     * Acquires the lock.
+     * Acquires the lock. If the lock is not available then the current thread becomes disabled for thread 
+     * scheduling purposes and lies dormant until the lock has been acquired.
      *
-     * If the lock is not available then the current thread becomes disabled for thread scheduling purposes and 
-     * lies dormant until the lock has been acquired.
-     *
-     * <p><b>Implementation Considerations</b>
-     *
-     * <p>A {@code Lock} implementation may be able to detect erroneous use
-     * of the lock, such as an invocation that would cause deadlock, and
-     * may throw an (unchecked) exception in such circumstances.  The
-     * circumstances and the exception type must be documented by that
-     * {@code Lock} implementation.
+     * Implementation Considerations
+     * Lock implementation may be able to detect erroneous use of the lock, such as an invocation that would cause 
+     * deadlock, and may throw an (unchecked) exception in such circumstances. The circumstances and the exception 
+     * type must be documented by that Lock implementation.
      */
     void lock();
 
     /**
-     * Acquires the lock unless the current thread is
-     * {@linkplain Thread#interrupt interrupted}.
+     * Acquires the lock unless the current thread is interrupted. Acquires the lock if it is available and 
+     * returns immediately. If the lock is not available then the current thread becomes disabled for thread 
+     * scheduling purposes and lies dormant until one of two things happens:
+     * 1.The lock is acquired by the current thread; 
+     * 2.Some other thread interrupts the current thread, and interruption of lock acquisition is supported.
      *
-     * <p>Acquires the lock if it is available and returns immediately.
+     * If the current thread has its interrupted status set on entry to this method; or is interrupted while 
+     * acquiring the lock, and interruption of lock acquisition is supported, then InterruptedException is thrown 
+     * and the current thread's interrupted status is cleared.
      *
-     * <p>If the lock is not available then the current thread becomes
-     * disabled for thread scheduling purposes and lies dormant until
-     * one of two things happens:
+     * Implementation Considerations
+     * The ability to interrupt a lock acquisition in some implementations may not be possible, and if possible 
+     * may be an expensive operation. The programmer should be aware that this may be the case. An implementation 
+     * should document when this is the case.
      *
-     * <ul>
-     * <li>The lock is acquired by the current thread; or
-     * <li>Some other thread {@linkplain Thread#interrupt interrupts} the
-     * current thread, and interruption of lock acquisition is supported.
-     * </ul>
+     * An implementation can favor responding to an interrupt over normal method return.
      *
-     * <p>If the current thread:
-     * <ul>
-     * <li>has its interrupted status set on entry to this method; or
-     * <li>is {@linkplain Thread#interrupt interrupted} while acquiring the
-     * lock, and interruption of lock acquisition is supported,
-     * </ul>
-     * then {@link InterruptedException} is thrown and the current thread's
-     * interrupted status is cleared.
-     *
-     * <p><b>Implementation Considerations</b>
-     *
-     * <p>The ability to interrupt a lock acquisition in some
-     * implementations may not be possible, and if possible may be an
-     * expensive operation.  The programmer should be aware that this
-     * may be the case. An implementation should document when this is
-     * the case.
-     *
-     * <p>An implementation can favor responding to an interrupt over
-     * normal method return.
-     *
-     * <p>A {@code Lock} implementation may be able to detect
-     * erroneous use of the lock, such as an invocation that would
-     * cause deadlock, and may throw an (unchecked) exception in such
-     * circumstances.  The circumstances and the exception type must
-     * be documented by that {@code Lock} implementation.
-     *
-     * @throws InterruptedException if the current thread is
-     *         interrupted while acquiring the lock (and interruption
-     *         of lock acquisition is supported)
+     * A  implementation may be able to detect erroneous use of the lock, such as an invocation that would
+     * cause deadlock, and may throw an (unchecked) exception in such circumstances. The circumstances and the 
+     * exception type must be documented by that Lock implementation.
      */
     void lockInterruptibly() throws InterruptedException;
 
     /**
      * Acquires the lock only if it is free at the time of invocation.
      *
-     * <p>Acquires the lock if it is available and returns immediately
-     * with the value {@code true}.
-     * If the lock is not available then this method will return
-     * immediately with the value {@code false}.
+     * Acquires the lock if it is available and returns immediately with the value true. If the lock is not 
+     * available then this method will return immediately with the value false.
      *
-     * <p>A typical usage idiom for this method would be:
-     *  <pre> {@code
+     * A typical usage idiom for this method would be:
      * Lock lock = ...;
      * if (lock.tryLock()) {
      *   try {
@@ -160,114 +128,54 @@ public interface Lock {
      *   }
      * } else {
      *   // perform alternative actions
-     * }}</pre>
-     *
-     * This usage ensures that the lock is unlocked if it was acquired, and
-     * doesn't try to unlock if the lock was not acquired.
-     *
-     * @return {@code true} if the lock was acquired and
-     *         {@code false} otherwise
+     * }
+     * This usage ensures that the lock is unlocked if it was acquired, and doesn't try to unlock if the lock 
+     * was not acquired.
      */
     boolean tryLock();
 
     /**
-     * Acquires the lock if it is free within the given waiting time and the
-     * current thread has not been {@linkplain Thread#interrupt interrupted}.
+     * Acquires the lock if it is free within the given waiting time and the current thread has not been interrupted.
      *
-     * <p>If the lock is available this method returns immediately
-     * with the value {@code true}.
-     * If the lock is not available then
-     * the current thread becomes disabled for thread scheduling
-     * purposes and lies dormant until one of three things happens:
-     * <ul>
-     * <li>The lock is acquired by the current thread; or
-     * <li>Some other thread {@linkplain Thread#interrupt interrupts} the
-     * current thread, and interruption of lock acquisition is supported; or
-     * <li>The specified waiting time elapses
-     * </ul>
+     * If the lock is available this method returns immediately with the value true. If the lock is not available 
+     * then the current thread becomes disabled for thread scheduling purposes and lies dormant until one of three 
+     * things happens:
+     * 1.The lock is acquired by the current thread; 
+     * 2.Some other thread interrupts the current thread, and interruption of lock acquisition is supported; 
+     * 3.The specified waiting time elapses
      *
-     * <p>If the lock is acquired then the value {@code true} is returned.
+     * If the lock is acquired then the value true is returned. If the current thread has its interrupted status 
+     * set on entry to this method; or is interrupted while acquiring the lock, and interruption of lock acquisition 
+     * is supported, then InterruptedException is thrown and the current thread's interrupted status is cleared.
      *
-     * <p>If the current thread:
-     * <ul>
-     * <li>has its interrupted status set on entry to this method; or
-     * <li>is {@linkplain Thread#interrupt interrupted} while acquiring
-     * the lock, and interruption of lock acquisition is supported,
-     * </ul>
-     * then {@link InterruptedException} is thrown and the current thread's
-     * interrupted status is cleared.
-     *
-     * <p>If the specified waiting time elapses then the value {@code false}
-     * is returned.
-     * If the time is
-     * less than or equal to zero, the method will not wait at all.
-     *
-     * <p><b>Implementation Considerations</b>
-     *
-     * <p>The ability to interrupt a lock acquisition in some implementations
-     * may not be possible, and if possible may
-     * be an expensive operation.
-     * The programmer should be aware that this may be the case. An
-     * implementation should document when this is the case.
-     *
-     * <p>An implementation can favor responding to an interrupt over normal
-     * method return, or reporting a timeout.
-     *
-     * <p>A {@code Lock} implementation may be able to detect
-     * erroneous use of the lock, such as an invocation that would cause
-     * deadlock, and may throw an (unchecked) exception in such circumstances.
-     * The circumstances and the exception type must be documented by that
-     * {@code Lock} implementation.
-     *
-     * @param time the maximum time to wait for the lock
-     * @param unit the time unit of the {@code time} argument
-     * @return {@code true} if the lock was acquired and {@code false}
-     *         if the waiting time elapsed before the lock was acquired
-     *
-     * @throws InterruptedException if the current thread is interrupted
-     *         while acquiring the lock (and interruption of lock
-     *         acquisition is supported)
+     * If the specified waiting time elapses then the value false is returned. If the time is less than or equal 
+     * to zero, the method will not wait at all.
      */
     boolean tryLock(long time, TimeUnit unit) throws InterruptedException;
 
     /**
      * Releases the lock.
      *
-     * <p><b>Implementation Considerations</b>
-     *
-     * <p>A {@code Lock} implementation will usually impose
-     * restrictions on which thread can release a lock (typically only the
-     * holder of the lock can release it) and may throw
-     * an (unchecked) exception if the restriction is violated.
-     * Any restrictions and the exception
-     * type must be documented by that {@code Lock} implementation.
+     * Implementation Considerations
+     * A Lock implementation will usually impose restrictions on which thread can release a lock (typically only the
+     * holder of the lock can release it) and may throw an (unchecked) exception if the restriction is violated.
+     * Any restrictions and the exception type must be documented by that Lock implementation.
      */
     void unlock();
 
     /**
-     * Returns a new {@link Condition} instance that is bound to this
-     * {@code Lock} instance.
+     * Returns a new Condition instance that is bound to this Lock instance. Before waiting on the condition the 
+     * lock must be held by the current thread. A call to Condition.await() will atomically release the lock before 
+     * waiting and re-acquire the lock before the wait returns.
      *
-     * <p>Before waiting on the condition the lock must be held by the
-     * current thread.
-     * A call to {@link Condition#await()} will atomically release the lock
-     * before waiting and re-acquire the lock before the wait returns.
-     *
-     * <p><b>Implementation Considerations</b>
-     *
-     * <p>The exact operation of the {@link Condition} instance depends on
-     * the {@code Lock} implementation and must be documented by that
+     * Implementation Considerations 
+     * The exact operation of the Conditioninstance depends on the Lock implementation and must be documented by that
      * implementation.
-     *
-     * @return A new {@link Condition} instance for this {@code Lock} instance
-     * @throws UnsupportedOperationException if this {@code Lock}
-     *         implementation does not support conditions
      */
     Condition newCondition();
 }
 
 ```
-
 
 ```java
 /**
