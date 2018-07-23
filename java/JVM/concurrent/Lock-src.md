@@ -174,7 +174,6 @@ public interface Lock {
      */
     Condition newCondition();
 }
-
 ```
 
 ```java
@@ -353,7 +352,5 @@ public class LockSupport {
                 (tk.getDeclaredField("threadLocalRandomSecondarySeed"));
         } catch (Exception ex) { throw new Error(ex); }
     }
-
 }
-
 ```
