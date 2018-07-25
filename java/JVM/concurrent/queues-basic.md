@@ -192,5 +192,85 @@ public interface BlockingQueue<E> extends Queue<E> {
      */
     int drainTo(Collection<? super E> c, int maxElements);
 }
+```
 
+```java
+/**
+ * This class provides skeletal implementations of some Queue operations. The implementations in this class 
+ * are appropriate when the base implementation does not allow null elements. Methods add(), remove(), and element() 
+ * are based on offer(), poll(), and peek(), respectively, but throw exceptions instead of indicating failure via 
+ * false or null returns.
+ *
+ * A Queue implementation that extends this class must minimally define a method offer() which does not permit
+ * insertion of null elements, along with methods peek(), poll(), size(), and iterator(). Typically, additional 
+ * methods will be overridden as well. If these requirements cannot be met, consider instead subclassing 
+ * AbstractCollection
+ */
+public abstract class AbstractQueue<E> extends AbstractCollection<E> implements Queue<E> {
+
+    // Constructor for use by subclasses.
+    protected AbstractQueue() { }
+
+    // This implementation returns true if offer()succeeds, else throws an IllegalStateException
+    public boolean add(E e) {
+        if (offer(e))
+            return true;
+        else
+            throw new IllegalStateException("Queue full");
+    }
+
+    /**
+     * Retrieves and removes the head of this queue. This implementation returns the result of poll() 
+     * or throws an exception if this queue is empty.
+     */
+    public E remove() {
+        E x = poll();
+        if (x != null)
+            return x;
+        else
+            throw new NoSuchElementException();
+    }
+
+    /**
+     * Retrieves but not removes the head of this queue. This implementation returns the result of 
+     * peek() or throws an exception if this queue is empty.
+     */
+    public E element() {
+        E x = peek();
+        if (x != null)
+            return x;
+        else
+            throw new NoSuchElementException();
+    }
+
+    /**
+     * Repeatedly invokes poll() until it returns null to removes all of the elements from this queue. 
+     * The queue will be empty after this call returns.
+     */
+    public void clear() {
+        while (poll() != null);
+    }
+
+    /**
+     * Adds all of the elements in the specified collection to this queue. Attempts to addAll of a queue to 
+     * itself result in IllegalArgumentException. Further, the behavior of this operation is undefined if the 
+     * specified collection is modified while the operation is in progress.
+     *
+     * This implementation iterates over the specified collection, and adds each element returned by the iterator 
+     * to this queue, in turn. A runtime exception encountered while trying to add an element (including, 
+     * in particular, a null element) may result in only some of the elements having been successfully added 
+     * when the associated exception is thrown.
+     */
+    public boolean addAll(Collection<? extends E> c) {
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        boolean modified = false;
+        for (E e : c)
+            if (add(e))
+                modified = true;
+        return modified;
+    }
+}
 ```
