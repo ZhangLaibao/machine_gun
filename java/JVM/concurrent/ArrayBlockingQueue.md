@@ -19,24 +19,18 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
 
     /** The queued items */
     final Object[] items;
-
     /** items index for next take, poll, peek or remove */
     int takeIndex;
-
     /** items index for next put, offer, or add */
     int putIndex;
-
     /** Number of elements in the queue */
     int count;
 
     // Concurrency control uses the classic two-condition algorithm found in any textbook.
-
     /** Main lock guarding all access */
     final ReentrantLock lock;
-
     /** Condition for waiting takes */
     private final Condition notEmpty;
-
     /** Condition for waiting puts */
     private final Condition notFull;
 
@@ -48,7 +42,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
     transient Itrs itrs = null;
 
     // Internal helper methods
-
     /** Circularly decrement i */
     final int dec(int i) {
         return ((i == 0) ? items.length : i) - 1;
@@ -66,7 +59,8 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             throw new NullPointerException();
     }
 
-    /** Inserts element at current put position, advances, and signals. Call only when holding lock */
+    /** enqueue: Inserts element at current put position, advances, and signals. Call only when holding lock */
+    /** dequeue: Extracts element at current take position, advances, and signals. Call only when holding lock */
     private void enqueue(E x) {
         final Object[] items = this.items;
         items[putIndex] = x;
@@ -75,8 +69,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         count++;
         notEmpty.signal();
     }
-
-    /** Extracts element at current take position, advances, and signals. Call only when holding lock */
     private E dequeue() {
         final Object[] items = this.items;
         @SuppressWarnings("unchecked")
@@ -106,8 +98,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             if (itrs != null)
                 itrs.elementDequeued();
         } else {
-            // an "interior" remove
-            // slide over all others up through putIndex.
+            // an "interior" remove, slide over all others up through putIndex.
             final int putIndex = this.putIndex;
             for (int i = removeIndex;;) {
                 int next = i + 1;
@@ -141,7 +132,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         notEmpty = lock.newCondition();
         notFull =  lock.newCondition();
     }
-
     /**
      * Creates an ArrayBlockingQueue with the given (fixed) capacity, the specified access policy and initially 
      * containing the elements of the given collection, added in traversal order of the collection's iterator.
@@ -189,22 +179,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
     }
 
-    public void put(E e) throws InterruptedException {
-        checkNotNull(e);
-        final ReentrantLock lock = this.lock;
-        lock.lockInterruptibly();
-        try {
-            while (count == items.length)
-                notFull.await();
-            enqueue(e);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public boolean offer(E e, long timeout, TimeUnit unit)
-        throws InterruptedException {
-
+    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
         checkNotNull(e);
         long nanos = unit.toNanos(timeout);
         final ReentrantLock lock = this.lock;
@@ -222,11 +197,14 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
     }
 
-    public E poll() {
+    public void put(E e) throws InterruptedException {
+        checkNotNull(e);
         final ReentrantLock lock = this.lock;
-        lock.lock();
+        lock.lockInterruptibly();
         try {
-            return (count == 0) ? null : dequeue();
+            while (count == items.length)
+                notFull.await();
+            enqueue(e);
         } finally {
             lock.unlock();
         }
@@ -239,6 +217,16 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             while (count == 0)
                 notEmpty.await();
             return dequeue();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public E poll() {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return (count == 0) ? null : dequeue();
         } finally {
             lock.unlock();
         }
@@ -294,7 +282,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
     }
 
-    /** Returns the number of elements in this queue */
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -322,7 +309,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             lock.unlock();
         }
     }
-
 
     /** Returns true if and only if this queue contains at least one element e such that o.equals(e) */
     public boolean contains(Object o) {
@@ -647,7 +633,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
 
         /**
-         * Called whenever an interior remove (not at takeIndex) occurred.
+         * Called whenever an interior remove (not at takeIndex) occurred. 
          * Notifies all iterators, and expunges any that are now stale.
          */
         void removedAt(int removedIndex) {
@@ -673,8 +659,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
 
         /**
-         * Called whenever the queue becomes empty.
-         * Notifies all active iterators that the queue is empty,
+         * Called whenever the queue becomes empty. Notifies all active iterators that the queue is empty,
          * clears all weak refs, and unlinks the itrs datastructure.
          */
         void queueIsEmpty() {
@@ -703,20 +688,15 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
     /**
      * Iterator for ArrayBlockingQueue.
      *
-     * To maintain weak consistency with respect to puts and takes, we
-     * read ahead one slot, so as to not report hasNext true but then
-     * not have an element to return.
+     * To maintain weak consistency with respect to puts and takes, we read ahead one slot, so as to not report 
+     * hasNext true but then not have an element to return.
      *
-     * We switch into "detached" mode (allowing prompt unlinking from
-     * itrs without help from the GC) when all indices are negative, or
-     * when hasNext returns false for the first time.  This allows the
-     * iterator to track concurrent updates completely accurately,
-     * except for the corner case of the user calling Iterator.remove()
-     * after hasNext() returned false.  Even in this case, we ensure
-     * that we don't remove the wrong element by keeping track of the
-     * expected element to remove, in lastItem.  Yes, we may fail to
-     * remove lastItem from the queue if it moved due to an interleaved
-     * interior remove while in detached mode.
+     * We switch into "detached" mode (allowing prompt unlinking from itrs without help from the GC) when all 
+     * indices are negative, or when hasNext() returns false for the first time. This allows the iterator to 
+     * track concurrent updates completely accurately, except for the corner case of the user calling 
+     * Iterator.remove() after hasNext() returned false. Even in this case, we ensure that we don't remove the 
+     * wrong element by keeping track of the expected element to remove, in lastItem. Yes, we may fail to remove 
+     * lastItem from the queue if it moved due to an interleaved interior remove while in detached mode.
      */
     private class Itr implements Iterator<E> {
         /** Index to look for new nextItem; NONE at end */
@@ -814,11 +794,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
          * operation on this iterator.  Call only from iterating thread.
          */
         private void incorporateDequeues() {
-            // assert lock.getHoldCount() == 1;
-            // assert itrs != null;
-            // assert !isDetached();
-            // assert count > 0;
-
             final int cycles = itrs.cycles;
             final int takeIndex = ArrayBlockingQueue.this.takeIndex;
             final int prevCycles = this.prevCycles;
@@ -849,19 +824,12 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
 
         /**
-         * Called when itrs should stop tracking this iterator, either
-         * because there are no more indices to update (cursor < 0 &&
-         * nextIndex < 0 && lastRet < 0) or as a special exception, when
-         * lastRet >= 0, because hasNext() is about to return false for the
-         * first time.  Call only from iterating thread.
+         * Called when itrs should stop tracking this iterator, either because there are no more indices to 
+         * update (cursor < 0 && nextIndex < 0 && lastRet < 0) or as a special exception, when lastRet >= 0, 
+         * because hasNext() is about to return false for the first time. Call only from iterating thread.
          */
         private void detach() {
             // Switch to detached mode
-            // assert lock.getHoldCount() == 1;
-            // assert cursor == NONE;
-            // assert nextIndex < 0;
-            // assert lastRet < 0 || nextItem == null;
-            // assert lastRet < 0 ^ lastItem != null;
             if (prevTakeIndex >= 0) {
                 // assert itrs != null;
                 prevTakeIndex = DETACHED;
@@ -871,10 +839,9 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
 
         /**
-         * For performance reasons, we would like not to acquire a lock in
-         * hasNext in the common case.  To allow for this, we only access
-         * fields (i.e. nextItem) that are not modified by update operations
-         * triggered by queue modifications.
+         * For performance reasons, we would like not to acquire a lock in hasNext in the common case. To allow 
+         * for this, we only access fields (i.e. nextItem) that are not modified by update operations triggered 
+         * by queue modifications.
          */
         public boolean hasNext() {
             // assert lock.getHoldCount() == 0;
@@ -958,7 +925,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
                 // else lastRet == REMOVED and the last returned element was
                 // previously asynchronously removed via an operation other
                 // than this.remove(), so nothing to do.
-
                 if (cursor < 0 && nextIndex < 0)
                     detach();
             } finally {
@@ -969,10 +935,9 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
 
         /**
-         * Called to notify the iterator that the queue is empty, or that it
-         * has fallen hopelessly behind, so that it should abandon any
-         * further iteration, except possibly to return one more element
-         * from next(), as promised by returning true from hasNext().
+         * Called to notify the iterator that the queue is empty, or that it has fallen hopelessly behind, so that 
+         * it should abandon any further iteration, except possibly to return one more element from next(), as 
+         * promised by returning true from hasNext().
          */
         void shutdown() {
             // assert lock.getHoldCount() == 1;
@@ -986,7 +951,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             prevTakeIndex = DETACHED;
             // Don't set nextItem to null because we must continue to be
             // able to return it on next().
-            //
             // Caller will unlink from itrs when convenient.
         }
 
@@ -997,11 +961,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             return distance;
         }
 
-        /**
-         * Called whenever an interior remove (not at takeIndex) occurred.
-         *
-         * @return true if this iterator should be unlinked from itrs
-         */
+        /** Called whenever an interior remove (not at takeIndex) occurred */
         boolean removedAt(int removedIndex) {
             // assert lock.getHoldCount() == 1;
             if (isDetached())
@@ -1053,11 +1013,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             return false;
         }
 
-        /**
-         * Called whenever takeIndex wraps around to zero.
-         *
-         * @return true if this iterator should be unlinked from itrs
-         */
+        /** Called whenever takeIndex wraps around to zero */
         boolean takeIndexWrapped() {
             // assert lock.getHoldCount() == 1;
             if (isDetached())
