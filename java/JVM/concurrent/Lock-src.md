@@ -1,6 +1,6 @@
 ### java.util.concurrent.locks.Lock
 Lock接口是JUC包里面所有锁实现的根接口。关于Lock的要点一般有两个，一是Lock与synchronized的比较，一个是他提供的四种获取锁
-的接口的具体行为，这两个问题在源码文档里都有详细的说明，不再翻译和总结。
+的接口的具体行为，这两个问题在源码文档里都有详细的说明，所以只贴源码和注释文档并在关键点做说明，不再全文翻译和总结。
 ```java
 /**
  * Lock implementations provide more extensive locking operations than can be obtained using synchronized methods
@@ -117,7 +117,7 @@ public interface Lock {
 ```
 ```java
 /**
- * A reentrant mutual exclusion Lock  with the same basic behavior and semantics as the implicit monitor 
+ * A reentrant mutual exclusion Lock with the same basic behavior and semantics as the implicit monitor 
  * lock accessed using synchronized methods and statements, but with extended capabilities.
  *
  * A ReentrantLock is owned by the thread last successfully locking, but not yet unlocking it. A thread invoking
@@ -134,21 +134,6 @@ public interface Lock {
  * succession while other active threads are not progressing and not currently holding the lock.
  * Also note that the untimed tryLock() method does not honor the fairness setting. It will succeed if the lock
  * is available even if other threads are waiting.
- *
- * It is recommended practice to always immediately follow a call to lock with a try block, most typically in 
- * a before/after construction such as:
- * class X {
- *   private final ReentrantLock lock = new ReentrantLock();
- *   // ...
- *   public void m() {
- *     lock.lock();  // block until condition holds
- *     try {
- *       // ... method body
- *     } finally {
- *       lock.unlock()
- *     }
- *   }
- * }
  *
  * In addition to implementing the Lock interface, this class defines a number of public and protected methods for 
  * inspecting the state of the lock. Some of these methods are only useful for instrumentation and monitoring.
@@ -395,24 +380,8 @@ public class ReentrantLock implements Lock, java.io.Serializable {
 
     /**
      * Queries the number of holds on this lock by the current thread. A thread has a hold on a lock for each 
-     * lock action that is not matched by an unlock action.
-     *
-     * The hold count information is typically only used for testing and debugging purposes. For example, if a 
-     * certain section of code should not be entered with the lock already held then we can assert that fact:
-     *
-     * class X {
-     *   ReentrantLock lock = new ReentrantLock();
-     *   // ...
-     *   public void m() {
-     *     assert lock.getHoldCount() == 0;
-     *     lock.lock();
-     *     try {
-     *       // ... method body
-     *     } finally {
-     *       lock.unlock();
-     *     }
-     *   }
-     * }
+     * lock action that is not matched by an unlock action. The hold count information is typically only used 
+     * for testing and debugging purposes. 
      */
     public int getHoldCount() {
         return sync.getHoldCount();
@@ -420,31 +389,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
 
     /**
      * Queries if this lock is held by the current thread. Analogous to the Thread.holdsLock(Object) method for
-     * built-in monitor locks, this method is typically used for debugging and testing. For example, a method 
-     * that should only be called while a lock is held can assert that this is the case:
-     * class X {
-     *   ReentrantLock lock = new ReentrantLock();
-     *   // ...
-     *   public void m() {
-     *       assert lock.isHeldByCurrentThread();
-     *       // ... method body
-     *   }
-     * }
-     *
-     * It can also be used to ensure that a reentrant lock is used in a non-reentrant manner, for example:
-     * class X {
-     *   ReentrantLock lock = new ReentrantLock();
-     *   // ...
-     *   public void m() {
-     *       assert !lock.isHeldByCurrentThread();
-     *       lock.lock();
-     *       try {
-     *           // ... method body
-     *       } finally {
-     *           lock.unlock();
-     *       }
-     *   }
-     * }
+     * built-in monitor locks, this method is typically used for debugging and testing. 
      */
     public boolean isHeldByCurrentThread() {
         return sync.isHeldExclusively();
@@ -1468,8 +1413,7 @@ public class ReentrantReadWriteLock implements ReadWriteLock, java.io.Serializab
         try {
             UNSAFE = sun.misc.Unsafe.getUnsafe();
             Class<?> tk = Thread.class;
-            TID_OFFSET = UNSAFE.objectFieldOffset
-                (tk.getDeclaredField("tid"));
+            TID_OFFSET = UNSAFE.objectFieldOffset(tk.getDeclaredField("tid"));
         } catch (Exception e) {
             throw new Error(e);
         }

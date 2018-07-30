@@ -85,6 +85,9 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
     }
 
     /**
+     * 提供给LockSupport用于记录当前线程阻塞对象的属性
+     * 使用Unsafe类读写此属性值，所以我们只能看到这样一个光秃秃的属性定义，看不到其他调用方法
+      * 
      * The argument supplied to the current call to java.util.concurrent.locks.LockSupport.park.
      * Set by (private) java.util.concurrent.locks.LockSupport.setBlocker
      * Accessed using java.util.concurrent.locks.LockSupport.getBlocker

@@ -1834,5 +1834,5 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 }
 
 ```
-Special thabks:
+Special thanks:
 https://javadoop.com/2017/06/16/AbstractQueuedSynchronizer/

@@ -139,11 +139,17 @@ class FIFOMutex {
 ```
 关于LockSupport的重点是几种形式的park()方法-void park(), void parkNanos(long), void parkUntil(long)。在JDK1.6之后
 对应每一个方法都添加了一个带有blocker参数的重载方法，官方推荐使用这些新的方法，因为在线程阻塞的时候这个blocker会被记录，
-可以使用getBlocker()方法获取这个blocker对象，进一步通过监视工具(比如线程dump)和诊断工具确定线程受阻塞的原因。  
+可以使用getBlocker()方法获取这个blocker对象，进一步通过监视工具(比如线程dump)和诊断工具确定线程受阻塞的原因，
+线程阻塞结束之后，blocker对象又会被置空。  
 通过阅读源码，我们可以清晰地看到，上述这些方法完全是由Unsafe类实现的，关于Unsafe的源码我们另作分析，在此我们需要知道的是，
 Java与硬件CPU/内存等的交互是由native代码完成的，通过Java代码我们无法直接操作，而Unsafe类就是为我们提供了这些操作的入口，
 通过Unsafe类我们可以直接在Java代码中分配内存/定位对象内存位置并进行无视访问权限的读写/CAS，还有在LockSupport是频繁使用的
 线程的挂起和恢复，当然官方并不建议我们在实际开发中使用这个类，因为它会带来一系列的安全和内存管理问题，并且Unsafe系统成本很高。  
+以下是Unsafe中park/unpark的方法签名：
+```java
+public native void park(boolean isAbsolute, long time);
+public native void unpark(Thread thread);
+```
 另外，getBlocker()方法之所以也由Unsafe实现是因为blocker只有在线程阻塞时才会被记录，此时只能通过直接操作内存来读取blocker
 对象，我们可以看到，在静态代码块中维护了parkBlockerOffset变量来记录blocker在内存中相对于起点的偏移量，这个起点在不同的
 JVM实现中并不相同，但是通过这个偏移量我们可以找到blocker对象。  
