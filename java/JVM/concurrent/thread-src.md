@@ -138,13 +138,10 @@ public class Thread implements Runnable {// Thread类也实现了Runnable接口
     public static void sleep(long millis, int nanos) throws InterruptedException {
         if (millis < 0) 
             throw new IllegalArgumentException("timeout value is negative");
-
         if (nanos < 0 || nanos > 999999) 
             throw new IllegalArgumentException("nanosecond timeout value out of range");
-
         if (nanos >= 500000 || (nanos != 0 && millis == 0)) 
             millis++;
-
         sleep(millis);
     }
 
