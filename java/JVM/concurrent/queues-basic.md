@@ -193,7 +193,6 @@ public interface BlockingQueue<E> extends Queue<E> {
     int drainTo(Collection<? super E> c, int maxElements);
 }
 ```
-
 ```java
 /**
  * This class provides skeletal implementations of some Queue operations. The implementations in this class 
