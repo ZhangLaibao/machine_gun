@@ -59,6 +59,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             throw new NullPointerException();
     }
 
+    // 相较于LinkedBlockingQueue，ArrayBlockingQueue的出入队简单一些，只需要维护读写的索引并读写这个数组元素即可
     /** enqueue: Inserts element at current put position, advances, and signals. Call only when holding lock */
     /** dequeue: Extracts element at current take position, advances, and signals. Call only when holding lock */
     private void enqueue(E x) {
@@ -331,74 +332,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         } finally {
             lock.unlock();
         }
-    }
-
-    /**
-     * Returns an array containing all of the elements in this queue, in proper sequence.
-     * The returned array will be "safe" in that no references to it are maintained by this queue. (In other words, 
-     * this method must allocate a new array). The caller is thus free to modify the returned array.
-     */
-    public Object[] toArray() {
-        Object[] a;
-        final ReentrantLock lock = this.lock;
-        lock.lock();
-        try {
-            final int count = this.count;
-            a = new Object[count];
-            int n = items.length - takeIndex;
-            if (count <= n)
-                System.arraycopy(items, takeIndex, a, 0, count);
-            else {
-                System.arraycopy(items, takeIndex, a, 0, n);
-                System.arraycopy(items, 0, a, n, count - n);
-            }
-        } finally {
-            lock.unlock();
-        }
-        return a;
-    }
-
-    /**
-     * Returns an array containing all of the elements in this queue, in proper sequence; the runtime type of 
-     * the returned array is that of the specified array. If the queue fits in the specified array, it is returned 
-     * therein. Otherwise, a new array is allocated with the runtime type of the specified array and the 
-     * size of this queue.
-     *
-     * If this queue fits in the specified array with room to spare (i.e., the array has more elements than this 
-     * queue), the element in the array immediately following the end of the queue is set to null.
-     *
-     * Like the toArray() method, this method acts as bridge between array-based and collection-based APIs. Further, 
-     * this method allows precise control over the runtime type of the output array, and may, under certain 
-     * circumstances, be used to save allocation costs.
-     *
-     * Suppose x is a queue known to contain only strings. The following code can be used to dump the queue into 
-     * a newly allocated array of String:
-     *      String[] y = x.toArray(new String[0]);
-     * Note that toArray(new Object[0]) is identical in function to toArray().
-     */
-    @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
-        final Object[] items = this.items;
-        final ReentrantLock lock = this.lock;
-        lock.lock();
-        try {
-            final int count = this.count;
-            final int len = a.length;
-            if (len < count)
-                a = (T[])java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), count);
-            int n = items.length - takeIndex;
-            if (count <= n)
-                System.arraycopy(items, takeIndex, a, 0, count);
-            else {
-                System.arraycopy(items, takeIndex, a, 0, n);
-                System.arraycopy(items, 0, a, n, count - n);
-            }
-            if (len > count)
-                a[count] = null;
-        } finally {
-            lock.unlock();
-        }
-        return a;
     }
 
     /** Atomically removes all of the elements from this queue. The queue will be empty after this call returns */
