@@ -156,7 +156,7 @@ public class ThreadDumpExample {
     }
 }
 ```
-分别运行1和2处代码，线程阻塞后通过jstack -l <pid> > <dump-file-name>命令得到的dump文件如下：
+分别运行1和2处代码，线程阻塞后通过jstack -l \<pid\> \> \<dump-file-name\>命令得到的dump文件如下：
 ```
 "main" #1 prio=5 os_prio=0 tid=0x000000000236f000 nid=0x1684 waiting on condition [0x00000000027ff000]
    java.lang.Thread.State: WAITING (parking)
