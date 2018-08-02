@@ -1,20 +1,22 @@
 ```java
 /**
- * Resizable-array implementation of the List interface. Implements all optional list operations, and permits all elements,
- * including null. In addition to implementing the List interface, this class provides methods to manipulate the size of the
- * array that is used internally to store the list. (This class is roughly equivalent to Vector, except that it is unsynchronized.)
+ * Resizable-array implementation of the List interface. Implements all optional list operations, and permits 
+ * all elements, including null. In addition to implementing the List interface, this class provides methods to 
+ * manipulate the size of the array that is used internally to store the list. (This class is roughly equivalent 
+ * to Vector, except that it is unsynchronized.)
  *
- * The size(), isEmpty(), get(), set(), iterator(), and listIterator() operations run in constant time. The add() operation
- * runs in amortized constant time: adding n elements requires O(n) time. All of the other operations run in linear time
- * (roughly speaking). The constant factor is low compared to that for the LinkedList implementation.
+ * The size(), isEmpty(), get(), set(), iterator(), and listIterator() operations run in constant time. The 
+ * add() operation runs in amortized constant time: adding n elements requires O(n) time. All of the other 
+ * operations run in linear time (roughly speaking). The constant factor is low compared to that for the 
+ * LinkedList implementation.
  *
- * Each ArrayList instance has a capacity. The capacity is the size of the array used to store the elements in the list.
- * It is always at least as large as the list size. As elements are added to an ArrayList, its capacity grows automatically.
- * The details of the growth policy are not specified beyond the fact that adding an element has constant amortized
- * time cost.
+ * Each ArrayList instance has a capacity. The capacity is the size of the array used to store the elements 
+ * in the list. It is always at least as large as the list size. As elements are added to an ArrayList, its 
+ * capacity grows automatically. The details of the growth policy are not specified beyond the fact that adding 
+ * an element has constant amortized time cost.
  *
- * An application can increase the capacity of an ArrayList instance before adding a large number of elements using the
- * ensureCapacity() operation. This may reduce the amount of incremental reallocation.
+ * An application can increase the capacity of an ArrayList instance before adding a large number of elements 
+ * using the ensureCapacity() operation. This may reduce the amount of incremental reallocation.
  *
  * Note that this implementation is not synchronized. If multiple threads access an ArrayList instance concurrently,
  * and at least one of the threads modifies the list structurally, it must be synchronized externally. (A structural
@@ -65,7 +67,6 @@ public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAcce
             this.elementData = EMPTY_ELEMENTDATA;
         else
             throw new IllegalArgumentException("Illegal Capacity: "+ initialCapacity);
-        }
     }
 
     /** Constructs an empty list with an initial capacity of ten */
