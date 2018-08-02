@@ -4,7 +4,7 @@
  * operations, and permits null values and the null key. (The HashMap class is roughly equivalent to Hashtable, 
  * except that it is unsynchronized and permits nulls.) This class makes no guarantees as to the order of the map; 
  * in particular, it does not guarantee that the order will remain constant over time.
- * 1.与HashTable基本等同，除了允许null key/value; 2.不保证顺序
+ * 1.与HashTable基本等同，除了允许null key/value; 2.不保证顺序 - 不保证插入顺序;不保证顺序不随时间变化
  * 
  * This implementation provides constant-time performance for the basic operations (get() and put()), assuming 
  * the hash function disperses the elements properly among the buckets. Iteration over collection views requires 
@@ -120,7 +120,8 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
      * The concurrent-programming-like SSA-based coding style helps avoid aliasing errors amid all of the 
      * twisty pointer operations.
      */
-    
+
+    /* ---------------- Constants -------------- */    
     /** The default initial capacity - MUST be a power of two */
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
     /** The maximum capacity, used if a higher value is implicitly specified
@@ -139,9 +140,32 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
     static final int UNTREEIFY_THRESHOLD = 6;
     /** The smallest table capacity for which bins may be treeified. (Otherwise the table is resized if too many 
      * nodes in a bin.) Should be at least 4 * TREEIFY_THRESHOLD to avoid conflicts between resizing and 
-     * treeification thresholds */
+     * treeification thresholds - 当有的bin元素个数已经达到TREEIFY_THRESHOLD但是hashmap的桶数量不足此值时，
+     * 并不会把数据结构转化为二叉树，而是resize() */
     static final int MIN_TREEIFY_CAPACITY = 64;    
 
+    /* ---------------- Fields -------------- */
+    /** The table, initialized on first use, and resized as necessary. When allocated, length is always a 
+     * power of two. (We also tolerate length zero in some operations to allow bootstrapping mechanics that 
+     * are currently not needed.) */
+    transient Node<K,V>[] table;
+
+    /** Holds cached entrySet(). Note that AbstractMap fields are used for keySet() and values() */
+    transient Set<Map.Entry<K,V>> entrySet;
+
+    /** The number of key-value mappings contained in this map */
+    transient int size;
+
+    /** The number of times this HashMap has been structurally modified(Structural modifications are those that 
+     * change the number of mappings in the HashMap or otherwise modify its internal structure (e.g., rehash). 
+     * This field is used to make iterators on Collection-views of the HashMap fail-fast */
+    transient int modCount;
+
+    /** The next size value at which to resize (capacity * load factor) */
+    int threshold;
+
+    /** The load factor for the hash table */
+    final float loadFactor;
 
     /** Basic hash bin node, used for most entries. (See below for TreeNode subclass, and in LinkedHashMap 
      * for its Entry subclass.) */
@@ -766,29 +790,6 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
         n |= n >>> 16;
         return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
     }
-
-    /* ---------------- Fields -------------- */
-    /** The table, initialized on first use, and resized as necessary. When allocated, length is always a 
-     * power of two. (We also tolerate length zero in some operations to allow bootstrapping mechanics that 
-     * are currently not needed.) */
-    transient Node<K,V>[] table;
-
-    /** Holds cached entrySet(). Note that AbstractMap fields are used for keySet() and values() */
-    transient Set<Map.Entry<K,V>> entrySet;
-
-    /** The number of key-value mappings contained in this map */
-    transient int size;
-
-    /** The number of times this HashMap has been structurally modified(Structural modifications are those that 
-     * change the number of mappings in the HashMap or otherwise modify its internal structure (e.g., rehash). 
-     * This field is used to make iterators on Collection-views of the HashMap fail-fast */
-    transient int modCount;
-
-    /** The next size value at which to resize (capacity * load factor) */
-    int threshold;
-
-    /** The load factor for the hash table */
-    final float loadFactor;
 
     /* ---------------- Public operations -------------- */
     public HashMap() {
