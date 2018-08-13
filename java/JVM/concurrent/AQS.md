@@ -1,8 +1,9 @@
 我们在分析java.util.concurrent包中很多重要工具，如FutureTask，多线程辅助工具CountDownLatch/Semaphore，线程池
-ThreandPoolExecutor.Worker的时候都会发现AbstractQueuedSynchronizer的身影。事实上AQS的设计也是出于此目的-提供锁
-和其他同步工具类的框架。AQS内部管理一个关于状态信息的单一整数，该整数可以表现任何状态。比如，Semaphore用它来表示剩余的许可数，
-ReentrantLock用它来表示拥有它的线程已经请求了多少次锁；FutureTask用它来表现任务的状态(尚未开始、运行、完成和取消)。
-现在我们就深入分析一下这个工具的原理。首先我们来阅读以下JDK的源代码，并整理一下其中的注释：    
+ThreandPoolExecutor.Worker的时候都会发现AbstractQueuedSynchronizer的身影。事实上AQS的设计也是出于此目的 - 为锁
+和其他同步工具类提供实现的基础框架。AQS内部管理一个关于状态信息的单一整数，该整数可以表现任何状态。
+比如，Semaphore用它来表示剩余的许可数，ReentrantLock用它来表示拥有它的线程已经请求了多少次锁；
+FutureTask用它来表现任务的状态(尚未开始、运行、完成和取消)。现在我们就深入分析一下这个工具的原理。
+首先我们来阅读以下JDK的源代码，并整理一下其中的注释：    
 ```java
 /**
  * Provides a framework for implementing blocking locks and related synchronizers (semaphores, events, etc) 
@@ -13,23 +14,29 @@ ReentrantLock用它来表示拥有它的线程已经请求了多少次锁；Futu
  * queuing and blocking mechanics. Subclasses can maintain other state fields, but only the atomically updated int 
  * value manipulated using methods getState(), setState() and compareAndSetState() is tracked with respect
  * to synchronization.
+ * 
  * AQS提供了通过先进先出的阻塞队列来实现阻塞式锁和相关的同步器的基础框架。设计的理念是通过维护一个原子操作的整数来表示锁的状态。
- * 子类必须定义修改此状态的protected方法，并定义该状态的含义，其他方法实现了具体的队列和阻塞机制。子类也可以维护其他的状态量，
- * 但是只有AQS里的state状态量可以用来维护同步逻辑。
- * 以ReentrantLock为例，state初始化为0，表示未锁定状态。A线程lock()时，会调用tryAcquire()独占该锁并将state+1。
+ * 子类必须定义修改此状态的protected方法，并定义该状态值的含义，其他方法实现具体的队列和阻塞机制。子类也可以维护其他的状态量，
+ * 但是只有AQS里的state状态量可以用来维护同步逻辑，并且需要通过AQS重定义好的getState()/setState()和compareAndSetState()
+ * 来操作这个状态量。官方推荐的使用方式是在同步工具类中定义内部类继承AQS并重写tryAcquire(), tryRelease(), tryAcquireShared(),
+ * tryReleaseShared(), isHeldExclusively()等方法，并通过AQS提供的原子方法getState(), setState(), compareAndSetState()
+ * 操作状态量。在JUC包提供的并发工具类中我们也可以看到确实是这样使用的。
+ * 
+ * 以ReentrantLock为例，采用独占模式实现，state初始化为0，表示未锁定状态。A线程lock()时，会调用tryAcquire()独占该锁并将state+1。
  * 此后，其他线程再tryAcquire()时就会失败，直到A线程unlock()到state=0(即释放锁)为止，其它线程才有机会获取该锁。
  * 当然，释放锁之前，A线程自己是可以重复获取此锁的(state会累加)，这就是可重入的概念。但要注意，获取多少次就要释放多么次，
  * 这样才能保证state是能回到零态的。
- * 再以CountDownLatch以例，任务分为N个子线程去执行，state也初始化为N(注意N要与线程个数一致)。这N个子线程是并行执行的，
- * 每个子线程执行完后countDown()一次，state会CAS减1。等到所有子线程都执行完后(即state=0)，会unpark()主调用线程，
- * 然后主调用线程就会从await()函数返回，继续后续动作。
+ * 再以CountDownLatch以例，采用share模式实现，我们将一个任务分为N个子线程去执行，state也初始化为N(注意N要与线程个数一致)。
+ * 这N个子线程是并行执行的，每个子线程执行完后countDown()一次，state会CAS减1。等到所有子线程都执行完后(即state=0)，
+ * 会unpark()主调用线程，然后主调用线程就会从await()函数返回，继续后续动作。
  * 
  * Subclasses should be defined as non-public internal helper classes that are used to implement the 
  * synchronization properties of their enclosing class. Class AbstractQueuedSynchronizer does not implement any
  * synchronization interface. Instead it defines methods such as acquireInterruptibly() that can be invoked as
  * appropriate by concrete locks and related synchronizers to implement their public methods.
+ * 
  * 子类应该被定义为非公有的内部类用来帮助实现其外部类的同步逻辑。AQS没有实现任何同步接口，而是定义了诸如
- * acquireInterruptibly()之类的方法，具体的锁和同步器调用它们来实现它们的公共方法。
+ * acquireInterruptibly()之类的方法，具体的锁和同步器调用这些方法来实现它们的公共方法。
  *
  * This class supports either or both a default exclusive mode and a shared mode. When acquired in exclusive mode,
  * attempted acquires by other threads cannot succeed. Shared mode acquires by multiple threads may (but need not) 
@@ -38,13 +45,14 @@ ReentrantLock用它来表示拥有它的线程已经请求了多少次锁；Futu
  * Threads waiting in the different modes share the same FIFO queue. Usually, implementation subclasses support only
  * one of these modes, but both can come into play for example in a ReadWriteLock. Subclasses that support only 
  * exclusive or only shared modes need not define the methods supporting the unused mode.
- * AQS支持独占模式和共享模式，独占模式下一个线程获取锁之后，除非已经释放了锁，否则其他线程获取锁的操作不会成功。共享模式下
- * 多个线程同时获取锁会(但不一定会)返回成功。AQS不感知这些区别，除了在共享模式的机制上，当一个线程获取锁成功之后，
- * 下一个等待的线程(如果有)必须检查它自己是否能够获取锁成功。不同模式下的等待线程共用一个队列。通常，实现类只需支持一种模式，
+ * 
+ * AQS支持独占模式和共享模式或者同时支持二者。独占模式下，一个线程获取锁之后，除非已经释放了锁，否则其他线程获取锁的操作不会成功。
+ * 共享模式下多个线程同时获取锁应该会(但不一定会)返回成功。AQS不感知这些区别，除了在共享模式的机制上，当一个线程获取锁成功之后，
+ * 下一个等待的线程(如果有)必须检查它自己是否能够获取锁成功。在不同模式下等待的线程共用一个队列。通常，实现类只需支持一种模式，
  * 不需要实现另外一种模式下的逻辑，但是像ReadWriteLock这种比较屌的同时支持两种模式也是可以的。
  * 
  * This class defines a nested ConditionObject class that can be used as a Condition implementation by subclasses
- * supporting exclusive mode for which method isHeldExclusively reports whether synchronization is exclusively
+ * supporting exclusive mode for which method isHeldExclusively() reports whether synchronization is exclusively
  * held with respect to the current thread, method release() invoked with the current getState() value fully releases
  * this object, and acquire(), given this saved state value, eventually restores this object to its previous 
  * acquired state. No AbstractQueuedSynchronizer method otherwise creates such a condition, so if this constraint 
@@ -62,9 +70,6 @@ ReentrantLock用它来表示拥有它的线程已经请求了多少次锁；Futu
  * To use this class as the basis of a synchronizer, redefine tryAcquire(), tryRelease(), tryAcquireShared(), 
  * tryReleaseShared(), isHeldExclusively(), by inspecting and/or modifying the synchronization state using 
  * getState(), setState() and/or compareAndSetState():
- * 官方推荐的使用方式是在同步工具类中定义内部类继承AQS并重写tryAcquire(), tryRelease(), tryAcquireShared(),
- * tryReleaseShared(), isHeldExclusively()等方法，并通过AQS提供的原子方法getState(), setState(), compareAndSetState()
- * 操作状态量。在JUC提供的并工具类中我们也可以看到确实是这样使用的。
  * 
  * Each of these methods by default throws UnsupportedOperationException. Implementations of these methods 
  * must be internally thread-safe, and should in general be short and not block. Defining these methods is the 
@@ -164,19 +169,9 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
      * A special value of status field is used to mark which queue a node is on.
      */
     static final class Node {
-        /** Marker to indicate a node is waiting in shared mode */
+        /** Marker to indicate a node is waiting in shared/exclusive mode */
         static final Node SHARED = new Node();
-        /** Marker to indicate a node is waiting in exclusive mode */
         static final Node EXCLUSIVE = null;
-
-        /** waitStatus value to indicate thread has cancelled */
-        static final int CANCELLED =  1;
-        /** waitStatus value to indicate successor's thread needs unparking */
-        static final int SIGNAL    = -1;
-        /** waitStatus value to indicate thread is waiting on condition */
-        static final int CONDITION = -2;
-        /** waitStatus value to indicate the next acquireShared should unconditionally propagate */
-        static final int PROPAGATE = -3;
 
         /**
          * Status field, taking on only the values:
@@ -211,7 +206,11 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
          * using CAS (or when possible, unconditional volatile writes).
          */
         volatile int waitStatus;
-
+        static final int CANCELLED =  1;
+        static final int SIGNAL    = -1;
+        static final int CONDITION = -2;
+        static final int PROPAGATE = -3;
+        
         /**
          * Link to predecessor node that current node/thread relies on for checking waitStatus. Assigned during 
          * enqueuing, and nulled out (for sake of GC) only upon dequeuing. Also, upon cancellation of a predecessor, 
