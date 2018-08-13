@@ -168,7 +168,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
      * +======+       +========+       +========+       +========+       +========+       +--------+
      * | AQS  |       | Node   |       | Node   |       | Node   |       | Node   |       ¦ Node   ¦
      * | head | ----→ | prev   | ←---- | prev   | ←---- | prev   | ←---- | prev   | ←---- ¦ prev   ¦
-     * |      | --+   | next   | ----→ | next   | ----→ | next   | ----→ | next   | ----→ ¦ next   ¦
+     * |      |       | next   | ----→ | next   | ----→ | next   | ----→ | next   | ----→ ¦ next   ¦
      * | tail | --+   | thread |       | thread |       | thread |       | thread |       ¦ thread ¦
      * +======+   |   +========+       +========+       +========+       +========+       +--------+
      *            +---------------------------------------------------------------------------↑
