@@ -138,11 +138,48 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
      *      +------+  prev +-----+       +-----+
      * head |      | <---- |     | <---- |     |  tail
      *      +------+       +-----+       +-----+
+     * AQS中的等待队列是CLH lock queue的一种变体。CLH锁通常被用于自旋锁，而AQS用它来实现阻塞式同步器，但是使用了相同的基本策略。
+     * 每一个Node对象中都维护一个"status"属性来决定一个线程是否应该被阻塞。当前驱节点被释放后，当前节点会被通知。
+     * 所以每个节点都被用作保存单个等待线程的特定通知样式监视器。但是这个"status"并不会体现当前线程是否被授予了锁。
+     * 一个线程所在的Node成为队列的第一个元素时，这个线程会尝试获取锁，但这仅仅是获取了竞争的机会，不保证成功。失败后会重新排队。
+     * 
+     * 所谓CLH队列锁是一种基于链表的可扩展、高性能、公平的自旋锁，有锁需求的线程仅仅在本地变量上自旋，它不断轮询前驱的状态，
+     * 假设发现前驱释放了锁就结束自旋，表示自己获取到了锁。
+     * 
+     * 关于AQS中维护的Node队列，更详细的示意如图：      
+     * +======+       +========+       +========+       +========+       +========+
+     * | AQS  |       | Node   |       | Node   |       | Node   |       | Node   |
+     * | head | ----→ | prev   | ←---- | prev   | ←---- | prev   | ←---- | prev   |
+     * |      |       | next   | ----→ | next   | ----→ | next   | ----→ | next   |
+     * | tail | --+   | thread |       | thread |       | thread |       | thread |
+     * +======+   |   +========+       +========+       +========+       +========+
+     *            +--------------------------------------------------------↑
+     *
+     *  setHead() +------------------------↓
+     * +======+   |   +--------+       +========+       +========+       +========+
+     * | AQS  |   |   ¦ Node   ¦       | Node   |       | Node   |       | Node   |
+     * | head | --+   ¦ prev   ¦ ←-×-- | prev   | ←---- | prev   | ←---- | prev   |
+     * |      |       ¦ next   ¦ --×-→ | next   | ----→ | next   | ----→ | next   |
+     * | tail | --+   ¦ thread ¦       | thread |       | thread |       | thread |
+     * +======+   |   +--------+       +========+       +========+       +========+
+     *            +----------------------------------------------------------↑     
+     *            
+     *  setTail() 
+     * +======+       +========+       +========+       +========+       +========+       +--------+
+     * | AQS  |       | Node   |       | Node   |       | Node   |       | Node   |       ¦ Node   ¦
+     * | head | ----→ | prev   | ←---- | prev   | ←---- | prev   | ←---- | prev   | ←---- ¦ prev   ¦
+     * |      | --+   | next   | ----→ | next   | ----→ | next   | ----→ | next   | ----→ ¦ next   ¦
+     * | tail | --+   | thread |       | thread |       | thread |       | thread |       ¦ thread ¦
+     * +======+   |   +========+       +========+       +========+       +========+       +--------+
+     *            +---------------------------------------------------------------------------↑
      *
      * Insertion into a CLH queue requires only a single atomic operation on "tail", so there is a simple atomic 
      * point of demarcation from unqueued to queued. Similarly, dequeuing involves only updating the "head". 
      * However, it takes a bit more work for nodes to determine who their successors are, in part to deal with 
      * possible cancellation due to timeouts and interrupts.
+     * 
+     * CLH队列的插入只需要对"tail"进行一次原子操作，因此未入列和已入列之间存在一个的原子性的临界点。同样，出列只涉及更新"head"。
+     * 但是，节点需要更多的工作来确定他们的"next"是谁，部分是为了处理由于超时和中断而可能造成的取消。
      *
      * The "prev" links (not used in original CLH locks), are mainly needed to handle cancellation. If a node is 
      * cancelled, its successor is (normally) relinked to a non-cancelled predecessor. 
@@ -260,16 +297,9 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
         }
 
         Node() { }   // Used to establish initial head or SHARED marker
+        Node(Thread thread, Node mode) { }    // Used by addWaiter
+        Node(Thread thread, int waitStatus) { }// Used by Condition
 
-        Node(Thread thread, Node mode) {     // Used by addWaiter
-            this.nextWaiter = mode;
-            this.thread = thread;
-        }
-
-        Node(Thread thread, int waitStatus) { // Used by Condition
-            this.waitStatus = waitStatus;
-            this.thread = thread;
-        }
     }
 
     /**
@@ -280,7 +310,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
     private transient volatile Node head;
     private transient volatile Node tail;
 
-    // 整个AQS的核心，使用volatile变量和CAS原子读写实现线程通信
+    // 整个AQS的核心，使用CAS原子读写volatile变量state实现线程通信
     private volatile int state;
 
     /**
@@ -723,14 +753,13 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
     }
     
     // ======================================Main exported methods======================================↑
-   
     /**
      * 首先调用tryAcqurire()，如果获取到锁立即返回，
      * 如果获取不到锁，将当前队列以独占模式加入队列，并在队列中等待继续获取直到成功
      * 所谓的对中断不敏感，也就是由于线程获取同步状态失败后进入同步队列中，后续对线程进行中断操作时，线程不会从同步队列中移出.
      * Acquires in exclusive mode, ignoring interrupts. Implemented by invoking at least once tryAcquire(),
      * returning on success. Otherwise the thread is queued, possibly repeatedly blocking and unblocking, 
-     * invoking tryAcquire() until success. This method can be used to implement method Lock#lock 
+     * invoking tryAcquire() until success. This method can be used to implement method Lock.lock() 
      */
     public final void acquire(int arg) {
         if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
@@ -1468,39 +1497,31 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
      * with atomic field updaters).
      */
     private static final Unsafe unsafe = Unsafe.getUnsafe();
-    private static final long stateOffset;
-    private static final long headOffset;
-    private static final long tailOffset;
-    private static final long waitStatusOffset;
-    private static final long nextOffset;
-
-    static {
-        try {
-            stateOffset = unsafe.objectFieldOffset(AbstractQueuedSynchronizer.class.getDeclaredField("state"));
-            headOffset = unsafe.objectFieldOffset(AbstractQueuedSynchronizer.class.getDeclaredField("head"));
-            tailOffset = unsafe.objectFieldOffset(AbstractQueuedSynchronizer.class.getDeclaredField("tail"));
-            waitStatusOffset = unsafe.objectFieldOffset(Node.class.getDeclaredField("waitStatus"));
-            nextOffset = unsafe.objectFieldOffset(Node.class.getDeclaredField("next"));
-        } catch (Exception ex) { throw new Error(ex); }
-    }
-
-    // CAS head field. Used only by enq.
+    // ...
+    
+    // CAS写队列，传入当前线程，当前线程认为的队列某处Node值，当前线程想修改此处Node值为什么值
+    /** CAS head field. Used only by enq */
     private final boolean compareAndSetHead(Node update) {
         return unsafe.compareAndSwapObject(this, headOffset, null, update);
     }
-    // CAS tail field. Used only by enq.
+
+    /** CAS tail field. Used only by enq */
     private final boolean compareAndSetTail(Node expect, Node update) {
         return unsafe.compareAndSwapObject(this, tailOffset, expect, update);
     }
-    // CAS waitStatus field of a node.
+
+    /** CAS waitStatus field of a node */
     private static final boolean compareAndSetWaitStatus(Node node, int expect, int update) {
         return unsafe.compareAndSwapInt(node, waitStatusOffset, expect, update);
     }
-    // CAS next field of a node.
+
+    /** CAS next field of a node */
     private static final boolean compareAndSetNext(Node node, Node expect, Node update) {
         return unsafe.compareAndSwapObject(node, nextOffset, expect, update);
-    }
+    }    
 }
 ```
 Special thanks:
 https://javadoop.com/2017/06/16/AbstractQueuedSynchronizer/
+https://www.cnblogs.com/showing/p/6858410.html
+https://www.cnblogs.com/waterystone/p/4920797.html
