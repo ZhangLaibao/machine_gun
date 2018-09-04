@@ -181,7 +181,7 @@ postProcessAfterInitialization()lifeCycleBean
 destroyed()
 ```
 
-总结起来我们可以做这样一个流程图：
+总结起来我们可以做这样一个流程图(github不支持md的流程图语法)：
 
 ```flow
 st=>start: Spring IOC 容器启动
