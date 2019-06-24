@@ -1,0 +1,19 @@
+Redis - 事务
+
+ACID
+    A: Atomicity
+    C: Consistency
+    I: Isolation
+    D: Durability
+
+1.事务三阶段：事务开始/命令入队/事务执行
+    Redis事务是由MULTI命令开始的，之后的命令会被存储到先进先出的队列中，直到遇到EXEC/DISCARD/WATCH/MULTI命令
+    
+2.WATCH命令
+    WATCH命令使用乐观锁，支持对多个key进行监视，在一个事务中，如果涉及的key有被WATCH的，并且发生了修改的，Redis会拒绝执行事务
+    Redis会维护一个wacthed_keys列表，将key和WATCH它的客户端做关联，如果key被修改了，则监视他的客户端的REDIS_DIRTY_CAS属性会被打开，在执行事务时如果发现这一属性被打开，事务会被拒绝
+    
+3.Redis事务特性
+    1.不支持回滚 - 即使事务中的某个命令执行出错，其他命令一样会继续执行
+    2.Redis的单线程决定了事务的串行执行，保证了隔离性
+    3.持久性取决于持久化措施和配置
