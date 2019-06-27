@@ -121,8 +121,8 @@ public WelcomePageHandlerMapping welcomePageHandlerMapping(ApplicationContext ap
 ```
 
 分析代码我们可以大致得出结论，spring boot会去静态资源根目录，也就是上述第二条规则中`/**`映射到的静态资源路径下找欢迎页和小图标资源文件。所以我们在项目中可以这样组织：
-
 ![welcome-and-icons](https://github.com/ZhangLaibao/machine_gun/blob/master/images/welcome-and-icons.png)
 
-此时如果直接访问http://localhost:8080 效果是这样的：![show-off](https://github.com/ZhangLaibao/machine_gun/blob/master/images/show-off.png)
+此时如果直接访问http://localhost:8080 效果是这样的：
+![show-off](https://github.com/ZhangLaibao/machine_gun/blob/master/images/show-off.png)
 
