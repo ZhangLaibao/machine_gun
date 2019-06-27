@@ -325,14 +325,14 @@ public interface ApplicationListener<E extends ApplicationEvent> extends EventLi
 				// Initialize message source for this context.
 				initMessageSource();
 
-                // ************初始化事件广播器************
+                		// ************初始化事件广播器************
 				// Initialize event multicaster for this context.
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
 				onRefresh();
 
-                // ************注册事件监听器************
+               			// ************注册事件监听器************
 				// Check for listener beans and register them.
 				registerListeners();
 
