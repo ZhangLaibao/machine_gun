@@ -90,7 +90,7 @@ public interface Interceptor {
      * 我们常用的PageHelper就是用了Interceptor来实现的，可以参考其代码中的interceptor逻辑
      * com.github.pagehelper.PageHelper#intercept
      */
-  	Object intercept(Invocation invocation) throws Throwable;
+     Object intercept(Invocation invocation) throws Throwable;
   	
     /**
      * 为目标对象生成代理对象，例如：
@@ -102,7 +102,7 @@ public interface Interceptor {
      * 使用了JDK的动态代理机制生成代理对象，对目标对象的调用自然会被代理到我们的代理对象，自然就可以
      * 控制我们interceptor方法的执行。
      */
-  	Object plugin(Object target);
+     Object plugin(Object target);
  
     /**
      * 注册一些属性，这些属性可以在配置拦截器时在xml文件里配置
