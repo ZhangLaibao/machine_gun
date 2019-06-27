@@ -124,5 +124,5 @@ public WelcomePageHandlerMapping welcomePageHandlerMapping(ApplicationContext ap
 
 ![welcome-and-icons](https://github.com/ZhangLaibao/machine_gun/blob/master/images/welcome-and-icons.png)
 
-效果是这样的：![show-off](https://github.com/ZhangLaibao/machine_gun/blob/master/images/hive-archi.pngshow-off.png)
+效果是这样的：![show-off](https://github.com/ZhangLaibao/machine_gun/blob/master/images/show-off.png)
 
