@@ -172,7 +172,7 @@ public class EventObject implements java.io.Serializable {
 public interface EventListener { }
 ```
 
-基于JDK提供的机制，我们开发一个最简单的时间发布和监听例子：
+基于JDK提供的机制，我们开发一个最简单的事件发布和监听例子：
 
 工程结构：
 
